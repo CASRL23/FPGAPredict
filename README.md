@@ -1,6 +1,12 @@
 # FPGAPredict Research
 Given a set of benchmarks with their CPU and FPGA features, FPGAPredict can perform clustering, feature selection, and KFold cross validation to predict a specific target metric on the FPGA (i.e. execution time or total power). It also can perform multiple random runs verification with KFold and prints the average error of these runs to verify that the results are accurate even with random KFolds.
 
+## Dependency
+
+Python 3 or higher is required to run FPGAPredict.
+We provide a requirements.txt that you can use to install all python dependencies through the following command:
+	pip3 install -r requirements.txt
+
 ## FPGAPredict Usage
 
 To edit configurations, either edit config.json or pass parameters as inputs to command line.
