@@ -29,21 +29,28 @@ Passed paramaters through command line will override any configurations in confi
 *clustering_features* (default: None i.e. all features): An array of strings where each string indicates the features to use for CLUSTERING. If None (default), all features are passed.
 
 *n_splits* (default: 5): Number of KFold n_splits. If n_splits <= 1 then KFold isn't performed and the results will show the training error only.
-*shuffle* (default: True): whether to shuffle the data points with KFold. Not used if n_splits=0.
+*shuffle* (default: True): whether to perform true shuffle or seeded shuffle with KFold. If True then true shuffle is performed, but if False then seeded shuffle is performed. Not used if n_splits <= 1.
 
-*random_state* (default: None): whether to seed the KFold shuffle or keep it random. An integer will seed it while None will keep it random.
+*random_state* (default: None): The starting seed of the shuffle. Only used if shuffle=False. This variable is incremented with every run performed (i.e. it is incremented <n_runs> times).
 
-*perm_up_to* (default: None): an integer or None, the maximum number of features to try in permutation. If None then this number is equal to n. Only used when perm=True.
+*perm_up_to* (default: None): an integer or None, the maximum number of features to try with prediction exhaustive search. If None then this number is equal to n. Only used when perm=True.
 
 *clustering_perm_up_to* (default: 5): an integer or None, the maximum number of clustering features to try in permutation. If None then this number is equal to clustering_n. Only used when clustering_perm=True.
+
+*perm_min* (default: 1): an integer, the minimum number of features to try with prediction exhaustive search. 
+
+*clustering_perm_min* (default: 1): an integer, the minimum number of clustering features to try with clustering exhaustive search. 
 
 *n_runs* (default: 50): an integer, the number of random runs to perform to record their results. Every run is performed with a different seed to make sure each run leads to a different random split.
 
 *n_cpu* (default: None): an integer or None, the number of parallel CPU runs to perform. If None, the code calculates the number of available cores and subtracts 3. Only used if parallel=True and either perm or clustering_perm are True.
+
 *parallel* (default: True): boolean, whether to perform parallel processing with exhaustive search or not. Only used if either perm=True or clustering_perm=True.
 
+*print* (default: True): boolean, whether to print details of the runs and their results. Regardless of this variable, the main will store all results in excel files even if they are not printed (i.e. print=False).
+
 ### Results
-Three main results are stored:
+Four main outputs are stored:
 1)  A directory of the target feature will be created (if not there already). 
     Under this directory, an excel file will be stored of the format: <estimator>_<board>_c<n_clusters>.xlsx
     This file will have one random run of the clusters, each of them separately (without the clustering prediction part)
@@ -52,8 +59,9 @@ Three main results are stored:
     the average <n_runs> error, STDEV, RMSE, and RRMSE. Also it will record the stdev <n_runs> of the error, STDEV, RMSE, and RRMSE.
 2)  In the main directory of the project, the same file in number 1 will be stored. 
     However, this file may be overwritten if the same experiment is performed, while the file in number 1 will never be overwritten.
-3)  Under the perm directory, a file will be stored that contain the features that have an average error of at 10% or lower.
+3)  If prediction exhaustive search was performed, then in the directory of the target feature, a file will be stored that contain the top 5 prediction features subsets.
     The file has a name format of "perm_results <Target Feature>_<clustering or prediction>_<estimator>.csv"
+4)  If clustering exhaustive search was performed, then in the directory of the target feature, a file will be stored that contain all clustering features subset that gave a clustering error of 0%. If none of them gave 0% clustering error, the clustering features with the lowest error is stored only.
 
 ### Examples
 
