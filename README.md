@@ -72,6 +72,7 @@ Use the following command to collect both clustering features with exhaustive se
 	
 		
 For example, 
+	
 	python3 main.py excelname=arria10_features.xls target_feature='Clock Period' shuffle=True random_state=None perm_shuffle=True clustering_perm=True clustering_n=22 n_clusters=2 perm=True n=22 scaling=1 estimator=1
 
 This command will find the clustering features and prediction features to predict the clock period on Arria 10 with 2 clusters and with linear regression.
