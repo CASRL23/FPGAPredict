@@ -238,7 +238,7 @@ class ExhaustiveSearch:
                     print("Current min error is %.5f" % (min_error))
                     print("---------")
 
-                if min_subset == prev_subset:
+                if np.array_equal(min_subset,prev_subset):
                     counter += 1
                 prev_subset = list(min_subset)
                 if counter > 5 and min_error < 5:
