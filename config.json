@@ -2,7 +2,7 @@
   "estimator": 1,
   "n": 22,
   "perm": "True",
-  "excelname": "arria10_features.xls",
+  "excelname": "arria10_features.xlsx",
   "clustering_n": 22,
   "clustering_perm": "True",
   "n_clusters": 2,
