@@ -176,7 +176,12 @@ class FPGAPredict:
                 # get the output feature for this cluster
                 cluster_y = pd.DataFrame(y.copy().to_numpy()[cluster_indices], columns=y.columns,
                                          index=y.index[cluster_indices])
-
+		
+		# print the benchmarks in the cluster
+		if self.printt:
+			print("\nRunning the following cluster:")
+			print(cluster_x.index.to_list())
+			
                 # if n_splits is 1 or less, fit and predict the whole dataset without KFold
                 if self.n_splits <= 1:
                     self.select_predict_alldataset(cluster_x, cluster_y, f)
