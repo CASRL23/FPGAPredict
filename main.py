@@ -11,6 +11,7 @@ from utils import *
 if __name__ == "__main__":
 
     # load configurations
+    # command line arguments are enough to pass the required parameters and will overwrite any configurations in the config.json file.
     f = open("config.json")
     inputs = json.load(f)
 
