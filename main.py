@@ -156,9 +156,10 @@ if __name__ == "__main__":
             second_excelname1 = excelname1
             second_excelname2 = excelname2
     print()
-    if avg_error2 < avg_error:
+    if avg_error2 < avg_error and inputs["n_clusters"] > 1:
         print("The best clustering features are: %s with an average error of %.2f %%" %(second_clustering_features, avg_error2))
         print("The output file was saved as %s" %second_excelname1)
     else:
-        print("The best clustering features are %s with an average error of %.2f %%" %(first_clustering_features, avg_error))
+        if inputs["n_clusters"] > 1:
+            print("The best clustering features are %s with an average error of %.2f %%" %(first_clustering_features, avg_error))
         print("The output file was saved as %s" %first_excelname1)
