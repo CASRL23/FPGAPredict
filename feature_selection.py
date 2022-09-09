@@ -107,9 +107,7 @@ class ExhaustiveSearch:
             best_c_subsets = None  # used for clustering only
             found_c_subsets = []  # used for clustering only
             choose = self.min  # number of features to start with (default is 1 for example)
-            prev_subset = None # save the best subset in a previous iteration
-            counter = 0 # count how many times the subset was not changed
-
+            
             # determine up to how many features to try
             upperLimit = self.max
 
@@ -121,8 +119,7 @@ class ExhaustiveSearch:
             processes = []
             thr = 48 * 60 * 60  # if elapsed time is more than 48 hours, stop permutation and output results
             count = 0  # used to store the top 5 subsets only
-            finish = False # whether to force finish exhaustive search
-
+            
             # record the start and elapsed time
             start = time.time()
             elapsed = 0
@@ -134,7 +131,7 @@ class ExhaustiveSearch:
                 pnumber = self.n_cpu
 
 
-            while choose <= upperLimit and elapsed < thr and not finish:
+            while choose <= upperLimit and elapsed < thr:
 
                 # prepare for parallel processing
                 if self.parallel:
@@ -237,12 +234,6 @@ class ExhaustiveSearch:
                         xcells_subset)))
                     print("Current min error is %.5f" % (min_error))
                     print("---------")
-
-                if np.array_equal(min_subset,prev_subset):
-                    counter += 1
-                prev_subset = list(min_subset)
-                if counter > 5 and min_error < 5:
-                    finish = True
 
                 elapsed = time.time() - start
                 choose = choose + 1
