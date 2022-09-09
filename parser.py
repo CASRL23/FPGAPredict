@@ -31,7 +31,7 @@ if __name__ == "__main__":
                 if len(cmd_args)>3:
                     startrow = int(cmd_args[3])
     if config["sheet_name"] == "":
-        config["sheet_name"] = "seeded_" + str(config["n_runs"]) + "runs_clustering"
+        config["sheet_name"] = "true_" + str(config["n_runs"]) + "runs_clustering"
     print("parsing with the following configurations")
     # default options
     mode = config["mode"]
