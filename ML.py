@@ -333,9 +333,9 @@ class FPGAPredict:
         if equation is not None:
             columns += ["Equation"]
         results_df = pd.DataFrame(results, index=benchmarks, columns=columns)
-        RMSE = np.sqrt(mean_squared_error(numpy_y, pred_y))
-        errors_arr = [[np.mean(all_errors), np.std(all_errors), RMSE]]
-        errors_df = pd.DataFrame(errors_arr, columns=["Average Error (%)", "STDEV Error", "RMSE"],
+        
+        errors_arr = [[np.mean(all_errors), np.std(all_errors)]]
+        errors_df = pd.DataFrame(errors_arr, columns=["Average Error (%)", "STDEV Error"],
                                  index=["Summary: "])
         self.args = {"features": self.features, "results": [results_df], "errors": [errors_df], "split": None,"avg_training_error": np.mean(all_errors)}
 
@@ -585,14 +585,14 @@ class FPGAPredict:
             all_testy = np.array(all_testy)
             RRMSE = np.sqrt((1 / n
                               * np.sum(np.power(np.divide(all_predy - all_testy, all_testy), 2))))
-            RMSE = np.sqrt(mean_squared_error(all_testy, all_predy))
+            
             avg_training_error = np.mean(np.abs(training_errors))
             avg_total_training_error += avg_training_error
             avg_total_testing_error += np.mean(all_errors)
-            errors_arr = [[np.mean(all_errors), np.std(all_errors), RMSE, RRMSE]]
-            errors_df = pd.DataFrame(errors_arr, columns=["Average Error (%)", "STDEV Error", "RMSE", "RRMSE (%)"],
+            errors_arr = [[np.mean(all_errors), np.std(all_errors), RRMSE]]
+            errors_df = pd.DataFrame(errors_arr, columns=["Average Error (%)", "STDEV Error", "RRMSE (%)"],
                                       index=["Summary: "])
-            # RMSEs.append(pd.DataFrame(list(zip(RMSE, RRMSE)), index=["Summary"], columns=["RMSE", "RRMSE"]))
+         
             all_errors_df.append(errors_df) # append all error rates for each run
             summaries.append(results_df) # append results for each run
 
@@ -724,12 +724,12 @@ class FPGAPredict:
 
         RRMSE = np.sqrt((1 / n
                          * np.sum(np.power(np.divide(all_predy - all_testy, all_testy), 2))))
-        RMSE = np.sqrt(mean_squared_error(all_testy, all_predy))
+        
         avg_error = results["Average Error (%)"].mean()
         std_error = results["Average Error (%)"].std()
-        stats = [[avg_error, std_error, RMSE, RRMSE]]
+        stats = [[avg_error, std_error, RRMSE]]
         stats = pd.DataFrame(stats, columns=["Average " + str(self.n_runs) + " Runs Error (%)", "STD of Avg Errors",
-                                             "RMSE", "RRMSE"], index=["Summary:"])
+                                              "RRMSE"], index=["Summary:"])
         results = results.sort_index()
         results.to_excel(writer1, startrow=row, sheet_name=sheet_name,index_label = "Summary of {} runs".format(self.n_runs) )
         results.to_excel(writer2, startrow=row, sheet_name=sheet_name,index_label = "Summary of {} runs".format(self.n_runs))
