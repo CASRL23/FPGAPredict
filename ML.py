@@ -696,9 +696,9 @@ class FPGAPredict:
 
             summaries_std = pd.concat(all_args["results"][cluster]).groupby(level=0).std()
 
-            summaries_std = summaries_std.rename(columns={"Average Error (%)": "STD of Avg Error"})
+            summaries_std = summaries_std.rename(columns={"Average Error (%)": "STD of Error"})
 
-            summaries_avg = pd.concat([summaries_avg, summaries_std["STD of Avg Error"]], axis=1)
+            summaries_avg = pd.concat([summaries_avg, summaries_std["STD of Error"]], axis=1)
             all_summaries.append(summaries_avg)
             avg_error = summaries_avg["Average Error (%)"].mean()
             if self.estimator.__class__.__name__ != "ClusteringRegression":
