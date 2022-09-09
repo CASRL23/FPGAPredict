@@ -16,7 +16,7 @@
   "clusters_features": "None",
   "clustering_estimators": "None",
   "clustering_perm_min": 1,
-  "perm_min": 1,
+  "perm_min": 2,
   "perm_up_to": "None",
   "clustering_perm_up_to": "5",
   "n_cpu": "None",
