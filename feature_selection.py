@@ -399,7 +399,7 @@ def permutation_fit(x, y, estimator, subset, n_splits=5, clustering=False,
                     if cluster_error > 0:
                         for j in range(n_clusters):
                             if c != j:
-                                temp_error =  -1*(np.sum(np.isin(cluster_bench,original_clusters[j]) - cluster_bench.shape[0]))
+                                temp_error =  -1*(np.sum(np.isin(cluster_bench,original_clusters[j])) - cluster_bench.shape[0])
                                 
                                 # change the labels if lower error found
                                 if temp_error < cluster_error:
