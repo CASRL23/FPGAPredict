@@ -50,10 +50,10 @@ def validate_inputs(inputs):
         inputs["clusters_features"] = list(inputs["clusters_features"].split("*"))
         for i in range(len(inputs["clusters_features"])):
             inputs["clusters_features"][i] = inputs["clusters_features"][i].split(",")
-    if inputs["target_feature"] == "None" or inputs["target_feature"] == None:
-        inputs["target_feature"] = None
+    if inputs["target_metric"] == "None" or inputs["target_metric"] == None:
+        inputs["target_metric"] = None
     else:
-        inputs["target_feature"] = str(inputs["target_feature"])  # .split(",")
+        inputs["target_metric"] = str(inputs["target_metric"])  
 
     if inputs["clustering_features"] == "None" or inputs["clustering_features"] == None:
         inputs["clustering_features"] = None
@@ -87,7 +87,10 @@ def validate_inputs(inputs):
             inputs["clustering_estimators"] is None or np.array(inputs["clusters_features"]).shape[0] != inputs["n_clusters"]):
         raise ValueError(
             "FPGAPredict: clustering estimators or the prediction features for each cluster were not set. Please set them and try again.")
-
+    if inputs["n_clusters"] < 1:
+        raise ValueError("FPGAPredict: the number of clusters must be 1 or more.")
+    if inputs["n_splits"] < 1:
+        raise ValueError("FPGAPredict: the number of KFold splits (n_splits) must be 1 or more.")
     return inputs
 
 
