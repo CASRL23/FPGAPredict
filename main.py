@@ -39,29 +39,10 @@ if __name__ == "__main__":
     print("Running with the following configuration: \n%s\n" % inputs)
 
     # initialize FPGAPredict with the configuration
-    fpga_pred = FPGAPredict(excelname=str(inputs["excelname"]),
-                            estimator=inputs["estimator"],
-                            n=int(inputs["n"]),
-                            perm=inputs["perm"],
-                            clustering_n=inputs["clustering_n"],
-                            clustering_estimators=inputs["clustering_estimators"],
-                            clusters_features=inputs["clusters_features"],
-                            clustering_perm=inputs["clustering_perm"],
-                            random_state=inputs["random_state"],
-                            n_clusters=inputs["n_clusters"],
-                            shuffle=False,
-                            n_splits=inputs["n_splits"],
-                            printt=inputs["print"],
-                            scaling=inputs["scaling"],
-                            n_runs=inputs["n_runs"],
-                            perm_min=inputs["perm_min"],
-                            clustering_perm_min=inputs["clustering_perm_min"],
-                            perm_up_to=inputs["perm_up_to"],
-                            clustering_perm_up_to=inputs["clustering_perm_up_to"],
-                            parallel=inputs["parallel"], n_cpu=inputs["n_cpu"])
+    fpga_pred = FPGAPredict(inputs)
 
     # start running FPGAPredict
-    ret = fpga_pred.run(target=[inputs["target_feature"]], features=inputs["features"],
+    ret = fpga_pred.run(target=[inputs["target_metric"]], features=inputs["features"],
                         clustering_features=inputs["clustering_features"])
 
     # save the first and second top clustering features
