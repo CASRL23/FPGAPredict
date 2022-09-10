@@ -33,11 +33,12 @@ if __name__ == "__main__":
             print("%s is not defined." % param)
             usage()
             exit()
-
+    
     # make the required conversions on inputs and validate them.
     inputs = validate_inputs(inputs)
     print("Running with the following configuration: \n%s\n" % inputs)
-
+    
+    inputs["shuffle"] = True
     # initialize FPGAPredict with the configuration
     fpga_pred = FPGAPredict(inputs)
 
