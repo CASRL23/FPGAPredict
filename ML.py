@@ -56,7 +56,7 @@ class FPGAPredict:
         else:
             self.estimator = estimator
 
-        self.printt = params["printt"]  # whether to print the results or not
+        self.printt = params["print"]  # whether to print the results or not
         self.excelname = params["excelname"]  # the name of the excel file that has the data
         self.random_state = params["random_state"]  # random state with KFold
         self.perm = params["perm"]  # boolean, whether to do prediction exhaustive search or not
