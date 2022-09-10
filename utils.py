@@ -23,15 +23,15 @@ def validate_inputs(inputs):
     else:
         inputs["n_cpu"] = int(inputs["n_cpu"])
 
-    if inputs["perm_up_to"] == "None" or inputs["perm_up_to"] == None:
-        inputs["perm_up_to"] = None
+    if inputs["perm_max"] == "None" or inputs["perm_max"] == None:
+        inputs["perm_max"] = None
     else:
-        inputs["perm_up_to"] = int(inputs["perm_up_to"])
+        inputs["perm_max"] = int(inputs["perm_max"])
 
-    if inputs["clustering_perm_up_to"] == "None" or inputs["clustering_perm_up_to"] == None:
-        inputs["clustering_perm_up_to"] = None
+    if inputs["clustering_perm_max"] == "None" or inputs["clustering_perm_max"] == None:
+        inputs["clustering_perm_max"] = None
     else:
-        inputs["clustering_perm_up_to"] = int(inputs["clustering_perm_up_to"])
+        inputs["clustering_perm_max"] = int(inputs["clustering_perm_max"])
     if inputs["features"] == "None" or inputs["features"] == None:
         inputs["features"] = None
 
