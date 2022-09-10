@@ -17,8 +17,8 @@
   "clustering_estimators": "None",
   "clustering_perm_min": 1,
   "perm_min": 2,
-  "perm_up_to": "None",
-  "clustering_perm_up_to": "5",
+  "perm_max": "None",
+  "clustering_max": "5",
   "n_cpu": "None",
   "parallel": "True",
   "print": "True"
