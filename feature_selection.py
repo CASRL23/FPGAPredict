@@ -323,13 +323,11 @@ def permutation_fit(x, y, estimator, subset, n_splits=5, clustering=False,
         # store the benchmarks of each cluster in a dictionary
         n_clusters = kmeans.get_params()['n_clusters']
         original_clusters = {}  # dictionary of the clusters
-        benchmarks = x.index.tolist()
-
-        for i in range(len(list(y))):
-            try:
-                original_clusters[y[i]].append(benchmarks[i])
-            except KeyError:
-                original_clusters[y[i]] = [benchmarks[i]]
+        benchmarks = np.array(x.index)
+        for c in range(n_clusters):
+            cluster_indicies = np.array(np.where(y == c))[0]
+            original_clusters[c] = benchmarks[cluster_indicies]
+            
         y = pd.DataFrame(y)
     # record the error rate of every iteration here
     all_errors = []
@@ -359,7 +357,7 @@ def permutation_fit(x, y, estimator, subset, n_splits=5, clustering=False,
 
             train_x, test_x = x.iloc[train0], x.iloc[test0]
             train_y, test_y = y.iloc[train0], y.iloc[test0]
-            training_benchmarks, testing_benchmarks = train_x.index.tolist(), test_x.index.tolist()
+            training_benchmarks, testing_benchmarks = np.array(train_x.index), np.array(test_x.index)
 
             estimator = copy(estimator)
 
@@ -384,31 +382,33 @@ def permutation_fit(x, y, estimator, subset, n_splits=5, clustering=False,
 
             if clustering:
 
-                training_labels = list(estimator.labels_)
+                training_labels = estimator.labels_
 
                 # an array used to correct the mislabelling
                 new_labels = [i for i in range(n_clusters)]
                 # check if the clusters are mislabled
 
                 training_clusters = {}  # dictionary of the clusters
-                benchmarks = x.index.tolist()
-
-                for i in range(len(training_labels)):
-                    try:
-                        training_clusters[training_labels[i]].append(training_benchmarks[i])
-                    except KeyError:
-                        training_clusters[training_labels[i]] = [training_benchmarks[i]]
-                training_errors = 0
-
-                for i in range(n_clusters):
-                    clusters_error = []
-                    for j in range(n_clusters):
-                        cluster_error = count_intersect(training_clusters[i], original_clusters[j])
-                        clusters_error.append(cluster_error)
-                    new_label = np.argmin(clusters_error)
-                    new_labels[i] = new_label
-                    training_error = np.amin(clusters_error)
-                    training_errors += training_error
+                training_errors = 0 # clustering training error
+                for c in range(n_clusters):
+                    cluster_indicies = np.array(np.where(training_labels == c))[0]
+                    cluster_bench = training_benchmarks[cluster_indicies]
+                    cluster_error = -1*(np.sum(np.isin(cluster_bench,original_clusters[c]) - cluster_bench.shape[0]))
+                    
+                    # if cluster_error is not 0, either cluster misprediction or mislabel has occured
+                    if cluster_error > 0:
+                        for j in range(n_clusters):
+                            if c != j:
+                                temp_error =  -1*(np.sum(np.isin(cluster_bench,original_clusters[j]) - cluster_bench.shape[0]))
+                                
+                                # change the labels if lower error found
+                                if temp_error < cluster_error:
+                                    cluster_error = temp_error
+                                    new_labels[c] = j
+                                # if the error is 0, no need to check the other clusters (the right cluster was found!)
+                                if cluster_error == 0:
+                                    continue
+                    training_errors += cluster_error
 
                 testing_error = 0
 
