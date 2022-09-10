@@ -39,52 +39,44 @@ class FPGAPredict:
 	n_cpu: an integer or None, the number of parallel CPU runs to perform. If None, the code calculates the number of available cores and subtracts 3. Only used if parallel=True and either perm or clustering_perm are True.
 	clusters_features: A 2D array that contains the features for each cluster in the following format: [features for c1, features for c2..., features for c<n_clusters>]
     '''
-    def __init__(self, excelname='features.xlsx', estimator=1,
-                 n=15, perm=False, clustering_n=20,
-                 clustering_perm=False,
-                 shuffle=False, n_splits=5,
-                 n_clusters=None,
-                 random_state=None, printt=True,
-                 scaling=1,
-                 clustering_estimators=None, n_runs=50, clustering_perm_up_to=None,
-                 perm_up_to=None, clustering_perm_min=1, perm_min=1, parallel=True, n_cpu=None,
-                 clusters_features=None):
+    def __init__(self, params):
         global ESTIMATORS
-        self.second_clustering_features = None # second top clustering features
-        self.perm_min = perm_min # min features to try in exhaustive search
-        self.clustering_perm_min = clustering_perm_min # min clustering features to try in exhaustive search
-        self.parallel = parallel # whether to perform parallel processing with exhaustive search
-        self.n_cpu = n_cpu # number of cores to use with parallel processes
-        self.n_runs = n_runs # number of random runs to perform
-        self.perm_up_to = perm_up_to # max features to try in exhaustive search
-        self.clustering_perm_up_to = clustering_perm_up_to # max clustering features to try in exhaustive search
-        if isinstance(estimator, int): # get the estimator from the dictionary
+        
+        self.perm_min = params["perm_min"] # min features to try in exhaustive search
+        self.clustering_perm_min = params["clustering_perm_min"] # min clustering features to try in exhaustive search
+        self.parallel = params["parallel"] # whether to perform parallel processing with exhaustive search
+        self.n_cpu = params["n_cpu"] # number of cores to use with parallel processes
+        self.n_runs = params["n_runs"] # number of random runs to perform
+        self.perm_up_to = params["perm_max"] # max features to try in exhaustive search
+        self.clustering_perm_up_to = params["clustering_perm_max"] # max clustering features to try in exhaustive search
+        estimator = params["estimator"]
+	if isinstance(estimator, int): # get the estimator from the dictionary
             self.estimator = ESTIMATORS[estimator]
         else:
             self.estimator = estimator
 
-        self.printt = printt  # whether to print the results or not
-        self.excelname = excelname # the name of the excel file that has the data
-        self.random_state = random_state # random state with KFold
-        self.perm = perm # boolean, whether to do prediction exhaustive search or not
-        self.n = n  # No. features to pass to exhaustive search. only used if perm is True
-        self.clustering_n = clustering_n  # No. clustering features to pass to exhaustive search. only used if clustering_perm is True
-        self.clustering_perm = clustering_perm # boolean, whether to do clustering exhaustive search or not
-        self.shuffle = shuffle # whether to perform true shuffle or not. If not, seeded shuffle is performed
-        self.board = excelname.split("_")[0] # the board name extracted from the excel file
+        self.printt = params["printt"]  # whether to print the results or not
+        self.excelname = params["excelname"] # the name of the excel file that has the data
+        self.random_state = params["random_state"] # random state with KFold
+        self.perm = params["perm"] # boolean, whether to do prediction exhaustive search or not
+        self.n = params["n"]  # No. features to pass to exhaustive search. only used if perm is True
+        self.clustering_n = params["clustering_n"]  # No. clustering features to pass to exhaustive search. only used if clustering_perm is True
+        self.clustering_perm = params["clustering_perm"] # boolean, whether to do clustering exhaustive search or not
+        self.shuffle = params["shuffle"] # whether to perform true shuffle or not. If not, seeded shuffle is performed
+        self.board = params["excelname"].split("_")[0] # the board name extracted from the excel file
         self.benchmarks = None # name of the benchmarks
-        self.n_clusters = n_clusters # number of clusters to create
-        self.n_splits = n_splits # number of splits with KFold
+        self.n_clusters = params["n_clusters"] # number of clusters to create
+        self.n_splits = params["n_splits"] # number of splits with KFold
         self.clustering_features = None # features used to cluster the dataset
-        self.clustering_estimators = clustering_estimators # estimators used for each cluster
-        self.clusters_features = clusters_features # features used for each cluster
+        self.clustering_estimators = params["clustering_estimators"] # estimators used for each cluster
+        self.clusters_features = params["clusters_features"] # features used for each cluster
 
         # if the estimator is clustering regression, set up the features and estimators for each cluster
-        if estimator == 0:
+        if params["estimator"] == 0:
             clustering_estimators = zip(list(self.clustering_estimators), list(self.clusters_features))
             self.clustering_estimators = list(clustering_estimators)
             self.estimator.set_parameters(estimators=self.clustering_estimators)
-        self.scaling = scaling
+        self.scaling = params["scaling"]
 
     # start FPGAPredict based on the configurations
     def run(self, features=None, target=None, clustering_features=None, output_results=True):
@@ -128,10 +120,8 @@ class FPGAPredict:
             if self.printt:
                 print("Finished exhaustive search. Current time is %.2f seconds" % time2)
             elapsed = time2 - time1
-            try:
-                self.second_clustering_features = perm.best_c_subsets.iloc[1]["Clustering Features"]
-            except (IndexError, KeyError):
-                self.second_clustering_features = None
+	    self.top_clustering_features = np.array(perm.best_c_subsets["Clustering Features"])
+            
             print(
                 "ELAPSED TIME FOR SELECTING FEATURES IS: %.4f seconds.\nStart Time = %.4f seconds and End Time = %.4f seconds\n" % (
                     elapsed, time1, time2))
