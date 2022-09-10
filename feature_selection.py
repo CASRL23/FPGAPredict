@@ -389,7 +389,7 @@ def permutation_fit(x, y, estimator, subset, n_splits=5, clustering=False,
                 # check if the clusters are mislabled
 
                 training_clusters = {}  # dictionary of the clusters
-                training_errors = 0 # clustering training error
+                training_error = 0 # clustering training error
                 for c in range(n_clusters):
                     cluster_indicies = np.array(np.where(training_labels == c))[0]
                     cluster_bench = training_benchmarks[cluster_indicies]
@@ -408,7 +408,7 @@ def permutation_fit(x, y, estimator, subset, n_splits=5, clustering=False,
                                 # if the error is 0, no need to check the other clusters (the right cluster was found!)
                                 if cluster_error == 0:
                                     continue
-                    training_errors += cluster_error
+                    training_error += cluster_error
 
                 testing_error = 0
 
