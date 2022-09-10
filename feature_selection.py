@@ -393,7 +393,7 @@ def permutation_fit(x, y, estimator, subset, n_splits=5, clustering=False,
                 for c in range(n_clusters):
                     cluster_indicies = np.array(np.where(training_labels == c))[0]
                     cluster_bench = training_benchmarks[cluster_indicies]
-                    cluster_error = -1*(np.sum(np.isin(cluster_bench,original_clusters[c]) - cluster_bench.shape[0]))
+                    cluster_error = -1*(np.sum(np.isin(cluster_bench,original_clusters[c])) - cluster_bench.shape[0])
                     
                     # if cluster_error is not 0, either cluster misprediction or mislabel has occured
                     if cluster_error > 0:
