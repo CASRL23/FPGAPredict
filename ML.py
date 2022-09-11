@@ -26,7 +26,7 @@ class FPGAPredict:
 	n_splits: Number of KFold n_splits. If n_splits <= 1 then KFold isn't performed and the results will show the training error only.
 	n_clusters: the number of clusters to create. If 1 then clustering is not performed
 	random_state: an integer indicating the random state to start with. Only used if shuffle=False.
-	printt: whether to print the processing log and the results.
+	printbool: whether to print the processing log and the results.
 	scaling: an integer, whether to scale the dataset. If 1: use standard scaling, If 2: use MinMax, else don't scale.
 	clustering_estimators: an array-like of integers for the estimator of each cluster. Only used when estimator=0 (i.e. clustering regression)
 	n_runs: an integer, the number of random runs to perform to record their results. Every run is performed with a different seed to make sure each run leads to a different random split.
@@ -56,7 +56,7 @@ class FPGAPredict:
         else:
             self.estimator = estimator
 
-        self.printt = params["print"]  # whether to print the results or not
+        self.printbool = params["print"]  # whether to print the results or not
         self.excelname = params["excelname"]  # the name of the excel file that has the data
         self.random_state = params["random_state"]  # random state with KFold
         self.perm = params["perm"]  # boolean, whether to do prediction exhaustive search or not
@@ -82,7 +82,7 @@ class FPGAPredict:
 
     # start FPGAPredict based on the configurations
     def run(self, features=None, target=None, clustering_features=None, output_results=True):
-        if self.printt:
+        if self.printbool:
             print("******** FPGAPredict Started Running ******** \n")
 
         # assign the clustering features for clustering regression
@@ -90,14 +90,10 @@ class FPGAPredict:
             self.estimator.set_parameters(clustering_features=clustering_features)
 
         # load data as data frames
-        x, y, x2 = self.read_excel_sheet(features, target, clustering_features)
+        features_df, target_df, clustering_features = self.read_excel_sheet(features, target, clustering_features)
 
         # initialize results dictionary
         all_args = {"features": [], "results": [], "split": [], "errors": [], "avg_training_error": []}
-
-        # save clustering features
-        if clustering_features is not None:
-            self.clustering_features = list(clustering_features)
 
         # find clustering features using permutation.
         if self.clustering_perm and self.n_clusters > 1:
@@ -111,23 +107,21 @@ class FPGAPredict:
 
             time1 = perf_counter()
 
-            if self.printt:
+            if self.printbool:
                 print("Starting exhaustive search. Current time is %.4f seconds" % time1)
 
             # select clustering features by calling fit_transform()
-            x2 = perm.fit_transform(x2, y, x)  # transforms clustering features to the top choice
+            self.clustering_features = perm.fit_transform(list(clustering_features), target_df, features_df).columns.tolist()  # transforms clustering features to the top choice
+
             time2 = perf_counter()
-            self.clustering_features = x2.columns.tolist()
-            if self.printt:
+            if self.printbool:
                 print("Finished exhaustive search. Current time is %.2f seconds" % time2)
             elapsed = time2 - time1
             self.top_clustering_features = np.array(perm.best_c_subsets["Clustering Features"])
 
-            print(
-                "ELAPSED TIME FOR SELECTING FEATURES IS: %.4f seconds.\nStart Time = %.4f seconds and End Time = %.4f seconds\n" % (
-                    elapsed, time1, time2))
+            print("ELAPSED TIME FOR SELECTING FEATURES IS: %.4f seconds.\nStart Time = %.4f seconds and End Time = %.4f seconds\n" % (elapsed, time1, time2))
             print("clustering features were selected successfully")
-            print("clustering features selected are: \n%s" % x2.columns.tolist())
+            print("clustering features selected are: \n%s" % self.clustering_features())
 
         if self.n_clusters > 1 and self.estimator.__class__.__name__ != "ClusteringRegression":
             print("-> Processing with clustering features: %s" % (self.clustering_features))
@@ -137,40 +131,40 @@ class FPGAPredict:
             kmeans = KMeans(n_clusters=self.n_clusters, random_state=42)
 
             # perform standard scaling on the clustering features
-            x2 = StandardScaler().fit_transform(x2)
+            scaled_clustering_features = StandardScaler().fit_transform(self.clustering_features)
 
             # perform clustering on the scaled dataset
-            kmeans.fit(x2, y)
+            kmeans.fit(self.clustering_features, target_df)
 
             # get kmeans labels and separate each cluster
             labels = np.array(kmeans.labels_)  # np.array(labels)
             time2 = perf_counter()
-            if self.printt:
+            if self.printbool:
                 print("Elapsed Time for Clustering is %.4f seconds\n" % (time2 - time1))
 
             # start processing each cluster separately
             for c in range(self.n_clusters):
-                if self.printt:
+                if self.printbool:
                     print("\nProcessing cluster %d...\n" % c)
 
                 # find the indices of this cluster
                 cluster_indices = np.array(np.where(labels == c))[0]
 
                 # get the input features for this cluster
-                cluster_x = pd.DataFrame(x.copy().to_numpy()[cluster_indices], columns=x.columns,
-                                         index=x.index[cluster_indices])
+                cluster_x = pd.DataFrame(features_df.copy().to_numpy()[cluster_indices], columns=self.features,
+                                         index= features_df.index[cluster_indices])
 
                 # if clusters_features are declared then get the features for this cluster only
                 if self.clusters_features is not None:
                     cluster_x = cluster_x[self.clusters_features[c]]
 
                 # get the output feature for this cluster
-                cluster_y = pd.DataFrame(y.copy().to_numpy()[cluster_indices], columns=y.columns,
-                                         index=y.index[cluster_indices])
+                cluster_y = pd.DataFrame(target_df.copy().to_numpy()[cluster_indices], columns = self.target_name,
+                                         index=target_df.index[cluster_indices])
 
                 # if n_splits is 1 or less, fit and predict the whole dataset without KFold
                 if self.n_splits <= 1:
-                    self.select_predict_alldataset(cluster_x, cluster_y, f)
+                    self.select_predict_alldataset(cluster_x, cluster_y)
                     all_args = self.args
                     all_args["results"] = [all_args["results"]]
                     all_args["errors"] = [all_args["errors"]]
@@ -178,7 +172,7 @@ class FPGAPredict:
                     return all_args
 
                 else:  # perform KFold
-                    ret = self.select_predict(cluster_x, cluster_y)
+                    self.select_predict(cluster_x, cluster_y)
 
                     all_args["results"].append(
                         self.args["results"])
@@ -189,16 +183,14 @@ class FPGAPredict:
 
         # perform KFold without clustering
         elif self.n_splits > 1:
-            if self.clusters_features is not None and self.estimator.__class__.__name__ != "ClusteringRegression":
-                x = x[self.clusters_features[0]]
-            ret = self.select_predict(x, y, x2)
+            self.select_predict(features_df, target_df, scaled_clustering_features)
             all_args = self.args
             all_args["results"] = [all_args["results"]]
             all_args["errors"] = [all_args["errors"]]
             all_args["features"] = [all_args["features"]]
             return all_args
         else:  # whole dataset without clustering
-            self.select_predict_alldataset(x, y)
+            self.select_predict_alldataset(features_df, scaled_clustering_features)
             all_args = self.args
             all_args["results"] = [all_args["results"]]
             all_args["errors"] = [all_args["errors"]]
@@ -213,14 +205,11 @@ class FPGAPredict:
             features = list(features)
             features.insert(0, "Benchmarks")
         if target is not None:
-            target = list(target)
-            target.insert(0, "Benchmarks")
+            self.target_feature = list(target)
+            self.target_feature.insert(0, "Benchmarks")
         if clustering is not None:
             clustering = list(clustering)
             clustering.insert(0, "Benchmarks")
-
-        # save the target name
-        self.target_feature = target
 
         # run with xlrd if the file is xls, otherwise run with openpyxl
         if self.excelname.split(".")[1] == "xls":
@@ -237,15 +226,12 @@ class FPGAPredict:
                                             usecols=clustering)  # read clustering features
 
         self.clustering_features = clustering_features.columns.tolist()
-        x = features_df
-        y = target_df
-        x2 = clustering_features
 
         # save features and benchmarks names
         self.features = features_df.columns
-        self.benchmarks = x.index.tolist()
+        self.benchmarks = features_df.index.tolist()
         self.target_name = target_df.columns
-        return x, y, x2
+        return features_df, target_df, clustering_features
 
     def select_predict_alldataset(self, x, y):
         print("FPGAPredict: The results will be computed on the whole dataset")
@@ -433,11 +419,11 @@ class FPGAPredict:
                 # scale the training and testing data
                 if self.scaling != 0:
                     if self.scaling == 1 and self.estimator.__class__.__name__ != "ExponentialRegression":
-                        if self.printt and p < 10:
+                        if self.printbool and p < 10:
                             print("FPGAPredict: standard scaling will be performed on the input features\n")
                         scaler = StandardScaler()
                     else:
-                        if self.printt and p < 10:
+                        if self.printbool and p < 10:
                             print("FPGAPredict: Min Max scaling will be performed on the input features\n")
                         scaler = MinMaxScaler(feature_range=(10, 11))
 
@@ -471,7 +457,7 @@ class FPGAPredict:
                     train_pred = np.array(self.estimator.predict(train_x))
                 training_error = np.abs(
                     np.divide(train_pred.flatten() - np.array(train_y).flatten(), np.array(train_y).flatten())) * 100
-                if self.printt and p < 10:
+                if self.printbool and p < 10:
                     print("training error of this split is %s" % (training_error))
                 training_errors = training_errors + list(training_error)
                 time3 = perf_counter()
@@ -484,7 +470,7 @@ class FPGAPredict:
                 elapsed2 = time4 - time3
 
                 # print timing
-                if self.printt and p < 10:
+                if self.printbool and p < 10:
                     print("Training time for fold %d = %.4f Seconds\nTesting time for fold %d = %.4f Seconds\n" % (
                         fold, elapsed1, fold, elapsed2))
                 all_predy += list(pred_y.flatten())
@@ -581,7 +567,7 @@ class FPGAPredict:
             all_errors_df.append(errors_df)  # append all error rates for each run
             summaries.append(results_df)  # append results for each run
 
-            if self.printt and p < 10:
+            if self.printbool and p < 10:
                 print()
                 print("----------- Result for the run No. %d of this cluster -----------\n" % (p))
                 print("Passed features -> " + str(list(self.features)))
