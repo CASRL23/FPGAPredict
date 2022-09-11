@@ -1,3 +1,7 @@
+# Branch Description
+
+This branch exists to rework the current code into a more organized object-oriented structure, while retaining the exact same functionality as the original program. 
+
 # FPGAPredict Research
 Given a set of benchmarks with their CPU and FPGA features, FPGAPredict can perform clustering, feature selection, and KFold cross validation to predict a specific target metric on the FPGA (i.e. execution time or total power). It also can perform multiple random runs verification with KFold and prints the average error of these runs to verify that the results are accurate even with random KFolds.
 
