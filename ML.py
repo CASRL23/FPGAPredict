@@ -568,15 +568,11 @@ class FPGAPredict:
             summaries.append(results_df)  # append results for each run
 
             if self.printbool and p < 10:
-                print()
-                print("----------- Result for the run No. %d of this cluster -----------\n" % (p))
-                print("Passed features -> " + str(list(self.features)))
-                print()
-                print(results_df.to_string())
-                print()
+                print("\n----------- Result for the run No. %d of this cluster -----------\n" % (p))
+                print("Passed features -> " + str(list(self.features)),"\n")
+                print(results_df.to_string(),"\n")
                 print(errors_df.to_string())
-                print("-------------------------------------------")
-                print()
+                print("-------------------------------------------\n")
         avg_total_training_error = avg_total_training_error / self.n_runs
         avg_total_testing_error = avg_total_testing_error / self.n_runs
         self.error = avg_total_testing_error
@@ -737,14 +733,11 @@ class FPGAPredict:
             row += 2
 
         print("*********** Summary of %d runs ***********\n" % self.n_runs)
-        print(stats.to_string())
-        print()
+        print(stats.to_string(),"\n")
         print("Estimator and features used:\n")
-        print(features.to_string())
-        print()
+        print(features.to_string(),"\n")
         print("Average Error(s) for Each Cluster:")
-        print(errors.to_string())
-        print()
+        print(errors.to_string(),"\n")
 
         writer1.save()
         writer2.save()
