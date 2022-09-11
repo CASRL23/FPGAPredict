@@ -93,7 +93,7 @@ class FPGAPredict:
         features_df, target_df, clustering_features = self.read_excel_sheet(features, target, clustering_features)
 
         # initialize results dictionary
-        all_args = {"features": [], "results": [], "split": [], "errors": [], "avg_training_error": []}
+        self.args = {"features": [], "results": [], "split": [], "errors": [], "avg_training_error": []}
 
         # find clustering features using permutation.
         if self.clustering_perm and self.n_clusters > 1:
@@ -165,37 +165,37 @@ class FPGAPredict:
                 # if n_splits is 1 or less, fit and predict the whole dataset without KFold
                 if self.n_splits <= 1:
                     self.select_predict_alldataset(cluster_x, cluster_y)
-                    all_args = self.args
-                    all_args["results"] = [all_args["results"]]
-                    all_args["errors"] = [all_args["errors"]]
-                    all_args["features"] = [all_args["features"]]
-                    return all_args
+                    
+                    self.args["results"] = [self.args["results"]]
+                    self.args["errors"] = [self.args["errors"]]
+                    self.args["features"] = [self.args["features"]]
+                    return self.args
 
                 else:  # perform KFold
                     self.select_predict(cluster_x, cluster_y)
 
-                    all_args["results"].append(
+                    self.args["results"].append(
                         self.args["results"])
-                    all_args["errors"].append(self.args["errors"])
-                    all_args["features"].append(self.args["features"])
+                    self.args["errors"].append(self.args["errors"])
+                    self.args["features"].append(self.args["features"])
 
-            return all_args
+            return self.args
 
         # perform KFold without clustering
         elif self.n_splits > 1:
             self.select_predict(features_df, target_df, scaled_clustering_features)
-            all_args = self.args
-            all_args["results"] = [all_args["results"]]
-            all_args["errors"] = [all_args["errors"]]
-            all_args["features"] = [all_args["features"]]
-            return all_args
+            
+            self.args["results"] = [self.args["results"]]
+            self.args["errors"] = [self.args["errors"]]
+            self.args["features"] = [self.args["features"]]
+            return self.args
         else:  # whole dataset without clustering
             self.select_predict_alldataset(features_df, scaled_clustering_features)
-            all_args = self.args
-            all_args["results"] = [all_args["results"]]
-            all_args["errors"] = [all_args["errors"]]
-            all_args["features"] = [all_args["features"]]
-            return all_args
+            
+            self.args["results"] = [self.args["results"]]
+            self.args["errors"] = [self.args["errors"]]
+            self.args["features"] = [self.args["features"]]
+            return self.args
 
     # reads the excel file and returns x and y as numpy arrays
     def read_excel_sheet(self, features, target, clustering):
@@ -594,15 +594,15 @@ class FPGAPredict:
 
     '''
     store the output using an argument array (result from fit())
-    all_args: a dictionary that contains two keys: results and errors. Each key contains a list for the output of each cluster, each output contains results (as an array) for n runs.
+    self.args: a dictionary that contains two keys: results and errors. Each key contains a list for the output of each cluster, each output contains results (as an array) for n runs.
     n_clusters: the number of clusters.
     excelname1: the name of the first excel file.
     excelname2: the name of the second excel file
     sheet_name: name of the sheet.
-    mode: whether to write or append. 
+    mode: whether to write or append.
     '''
 
-    def store_output(self, all_args, n_clusters=None, excelname1=None, excelname2=None, sheet_name=None, mode='w'):
+    def store_output(self, n_clusters=None, excelname1=None, excelname2=None, sheet_name=None, mode='w'):
 
         if n_clusters is None:
             n_clusters = self.n_clusters
@@ -652,9 +652,9 @@ class FPGAPredict:
             J = self.n_runs
         else:
             J = 10
-        for cluster in range(len(all_args["results"])):
+        for cluster in range(len(self.args["results"])):
 
-            summaries_avg = pd.concat(all_args["results"][cluster]).groupby(level=0).mean()
+            summaries_avg = pd.concat(self.args["results"][cluster]).groupby(level=0).mean()
             if self.estimator.__class__.__name__ == "ClusteringRegression":
                 summaries_avg = summaries_avg[
                     ["Real " + str(self.target), "Predicted " + str(self.target), "Average Error (%)", "Cluster"]]
@@ -668,7 +668,7 @@ class FPGAPredict:
                 summaries_avg = summaries_avg[
                     ["Real " + str(self.target), "Predicted " + str(self.target), "Average Error (%)"]]
 
-            summaries_std = pd.concat(all_args["results"][cluster]).groupby(level=0).std()
+            summaries_std = pd.concat(self.args["results"][cluster]).groupby(level=0).std()
 
             summaries_std = summaries_std.rename(columns={"Average Error (%)": "STD of Error"})
 
@@ -679,7 +679,7 @@ class FPGAPredict:
                 errors.append(avg_error)
                 labels.append("cluster " + str(cluster) + " Avg Error(%)")
             if self.estimator.__class__.__name__ != "ClusteringRegression" and self.clusters_features is None:
-                features.append(list(all_args["features"][cluster]))
+                features.append(list(self.args["features"][cluster]))
 
         clusters_features = list(features)
         if n_clusters > 1 and self.estimator.__class__.__name__ != "ClusteringRegression":
@@ -723,17 +723,17 @@ class FPGAPredict:
         row = row + 4
         for run in range(J):
 
-            for cluster in range(len(all_args["results"])):
-                all_args["results"][cluster][run].to_excel(writer1, startrow=row, sheet_name=sheet_name,
+            for cluster in range(len(self.args["results"])):
+                self.args["results"][cluster][run].to_excel(writer1, startrow=row, sheet_name=sheet_name,
                                                            index_label="cluster " + str(cluster))
-                all_args["results"][cluster][run].to_excel(writer2, startrow=row, sheet_name=sheet_name,
+                self.args["results"][cluster][run].to_excel(writer2, startrow=row, sheet_name=sheet_name,
                                                            index_label="cluster " + str(cluster))
-                row += len(all_args["results"][cluster][run].index.tolist()) + 2
-                all_args["errors"][cluster][run].to_excel(writer1, startrow=row, sheet_name=sheet_name,
+                row += len(self.args["results"][cluster][run].index.tolist()) + 2
+                self.args["errors"][cluster][run].to_excel(writer1, startrow=row, sheet_name=sheet_name,
                                                           index_label="cluster " + str(cluster))
-                all_args["errors"][cluster][run].to_excel(writer2, startrow=row, sheet_name=sheet_name,
+                self.args["errors"][cluster][run].to_excel(writer2, startrow=row, sheet_name=sheet_name,
                                                           index_label="cluster " + str(cluster))
-                row += len(all_args["errors"][cluster][run].index.tolist()) + 2
+                row += len(self.args["errors"][cluster][run].index.tolist()) + 2
             row += 2
 
         print("*********** Summary of %d runs ***********\n" % self.n_runs)
