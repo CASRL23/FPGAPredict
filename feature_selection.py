@@ -2,6 +2,7 @@
 Feature Selection using Exhaustive Search and PCC
 '''
 import multiprocessing as mp
+from multiprocessing.shared_memory import ShareableList
 import os
 import time
 from itertools import combinations
@@ -12,17 +13,6 @@ from scipy.stats import pearsonr
 import scipy
 from estimators import *
 from utils import name_file
-
-# global variables for Exhaustive Search
-global_min_error = np.Inf
-global_min_subset = None
-
-global_found_c_subsets = []
-global_best_c_subsets = None
-global_top_5_subsets = None
-global_all_found_features = []
-count = 0
-printt = True
 
 
 class ExhaustiveSearch:
@@ -60,7 +50,6 @@ class ExhaustiveSearch:
     def fit(self, x_, _y, _x2=None):
 
         if __name__ == "feature_selection":
-            
 
             # select the highest n PCC ranked features to pass to exhaustive search
             pcc_all = PCC(k=self.n)
@@ -87,7 +76,7 @@ class ExhaustiveSearch:
             else:
                 type_f = "prediction"
 
-            # store the best permutation results in a file
+            # prepare the files names to store the best permutation results in a file
             if self.printt:
                 _name = "perm_results " + str(_y.columns[0]) + "_" + str(type_f) + "_" + str(
                     self.estimator.__class__.__name__)
@@ -112,16 +101,17 @@ class ExhaustiveSearch:
                     "Selecting the best " + str(type_f) +
                     " features by using Exhaustive Search.")
 
-            # prepare to start permutation
-            global global_min_error
-            global global_min_subset
-            global global_found_c_subsets
-            global global_best_c_subsets
-            global global_top_5_subsets
-            global global_all_found_features
-            
-            min_subset = None  # subset with the lowest error
-            min_error = np.Inf  # the lowest error
+            # create shared memory variables
+
+            min_subset = [bytes(bytearray([-1 for j in range(self.n)])) for i in range(10)]  # store the top 10 subsets
+            min_error = [np.Inf for i in range(10)]
+            min_std_error = [np.Inf for i in range(10)]
+            max_pcc = [-np.Inf for i in range(10)]
+            min_subset = ShareableList(min_subset, name="min_subset")
+            min_error = ShareableList(min_error, name="min_error")
+            min_std_error = ShareableList(min_std_error, name="min_std_error")
+            index = ShareableList([0], name="index")
+            max_pcc = ShareableList(max_pcc, name="max_pcc")
             best_c_subsets = None  # used for clustering only
 
             choose = self.min  # number of features to start with (default is 1 for example)
@@ -133,6 +123,9 @@ class ExhaustiveSearch:
 
             # prepare a file to store all feature subsets that give an error < 5%
             top_5_subsets = None
+            best_c_subsets = None
+            all_found_features = []
+            found_c_subsets= []
 
             thr = 48 * 60 * 60  # if elapsed time is more than 48 hours, stop permutation and output results
             # record the start and elapsed time
@@ -182,18 +175,59 @@ class ExhaustiveSearch:
                         else:
                             process = training_fit(new_x, y, self.estimator, subset)
 
-
-
                 # wait for all processes to finish
                 if self.parallel:
                     pool.close()
                     pool.join()
 
-                min_error = global_min_error
-                min_subset = global_min_subset
 
-                best_c_subsets = global_best_c_subsets
-                top_5_subsets = global_top_5_subsets
+                min_error = list(ShareableList(name="min_error"))
+                min_subset = list(ShareableList(name="min_subset"))
+                index = list(ShareableList(name="index"))[0]
+                max_pcc = list(ShareableList(name="max_pcc"))
+                min_std_error = list(ShareableList(name="min_std_error"))
+                for g in range(index):
+                    subset = min_subset[g]
+                    error = min_error[g]
+                    avg_pcc = max_pcc[g]
+                    std_error = min_std_error[g]
+                    temp_subset = list(subset)
+
+                    # store the clustering subsets that give 0% error
+                    if clustering and error == 0 and not (temp_subset in found_c_subsets):
+                        found_c_subsets.append(temp_subset)
+                        temp = pd.DataFrame([[subset, avg_pcc]],
+                                            columns=["Clustering Features", "Avg. PCC"])
+                        if best_c_subsets is None:
+                            best_c_subsets = temp.copy()
+                        else:
+                            best_c_subsets = pd.concat([best_c_subsets, temp], ignore_index=True)
+
+                    # store the top 5 prediction subsets IN ORDER
+
+                    elif not clustering and printt:
+
+                        transformed_features = list(subset)
+                        if (count < 5 or top_5_subsets.iloc[4]["Avg Error (%)"] > error) and not \
+                                (transformed_features in all_found_features):
+                            temp = pd.DataFrame([[transformed_features, error, std_error]],
+                                                columns=["Features", "Avg Error (%)", "STD Error"])
+                            if top_5_subsets is None:
+                                top_5_subsets = temp
+                            else:
+                                top_5_subsets = pd.concat([top_5_subsets, temp], ignore_index=True)
+                            all_found_features.append(transformed_features)
+                            count += 1
+                        elif count > 5:
+                            top_5_subsets = top_5_subsets.sort_values("Avg Error (%)", ignore_index=True)
+                            if top_5_subsets.iloc[4]["Avg Error (%)"] > error and not (
+                                    transformed_features in all_found_features):
+                                top_5_subsets.drop([4], axis=0, inplace=True)
+                                temp = pd.DataFrame([[transformed_features, error, std_error]],
+                                                    columns=["Features", "Avg Error (%)", "STD Error"])
+                                top_5_subsets = pd.concat([top_5_subsets, temp], ignore_index=True)
+                                all_found_features.append(transformed_features)
+
 
                 if self.printt:
                     now = datetime.now()
@@ -366,8 +400,8 @@ def permutation_fit(x, y, estimator, subset, n_splits=5, clustering=False,
                         for j in range(n_clusters):
                             if c != j:
                                 temp_error = -1 * (
-                                            np.sum(np.isin(cluster_bench, original_clusters[j])) - cluster_bench.shape[
-                                        0])
+                                        np.sum(np.isin(cluster_bench, original_clusters[j])) - cluster_bench.shape[
+                                    0])
 
                                 # change the labels if lower error found
                                 if temp_error < cluster_error:
@@ -424,58 +458,25 @@ def permutation_fit(x, y, estimator, subset, n_splits=5, clustering=False,
         avg_pcc = -1
 
     # update the minimum error and the best subset
-    update_min_error(avg_error, subset, np.std(all_errors), avg_pcc, clustering)
+    min_error = ShareableList(name="min_error")
+    min_std_error = ShareableList(name="min_std_error")
+    index = ShareableList(name="index")
+    min_subset = ShareableList(name="min_subset")
+    max_pcc = ShareableList(name="max_pcc")
+    for j in range(index[0]):
+        if (avg_error < min_error[j]) or (clustering and avg_error==min_error[j] and max_pcc[j] <= avg_pcc):
 
+            for i in range(j, index[0]):
+                if i+1 < 10:
+                    min_error[i+1] = min_error[i]
+                    min_subset[i+1] = min_subset[i]
+                    min_std_error[i+1] = min_std_error[i]
+            if index[0] < 10:
+                index[0] += 1
+            min_error[j] = avg_error
+            min_subset[j] = min_subset
+            break
 
-def update_min_error(error, subset, std_error, avg_pcc, clustering):
-    global global_min_error
-    global global_min_subset
-    global global_found_c_subsets
-    global global_best_c_subsets
-    global global_top_5_subsets
-    global global_all_found_features
-    global count
-    global printt
-    # if the error is better the the current best error, update.
-    if error < global_min_error:
-        global_min_subset = avg_pcc
-        global_min_error = error
-    temp_subset = list(subset)
-
-    # store the clustering subsets that give 0% error
-    if clustering and error == 0 and not (temp_subset in global_found_c_subsets):
-        global_found_c_subsets.append(temp_subset)
-        temp = pd.DataFrame([[subset, avg_pcc]],
-                            columns=["Clustering Features", "Avg. PCC"])
-        if global_best_c_subsets is None:
-            global_best_c_subsets = temp.copy()
-        else:
-            global_best_c_subsets = pd.concat([global_best_c_subsets, temp], ignore_index=True)
-
-    # store the top 5 prediction subsets IN ORDER
-
-    elif not clustering and printt:
-
-        transformed_features = list(subset)
-        if (count < 5 or global_top_5_subsets.iloc[4]["Avg Error (%)"] > retval[0]) and not \
-                (transformed_features in global_all_found_features):
-            temp = pd.DataFrame([[transformed_features, retval[0], retval[2]]],
-                                columns=["Features", "Avg Error (%)", "STD Error"])
-            if global_top_5_subsets is None:
-                global_top_5_subsets = temp
-            else:
-                global_top_5_subsets = pd.concat([global_top_5_subsets, temp], ignore_index=True)
-            global_all_found_features.append(transformed_features)
-            count += 1
-        elif count > 5:
-            top_5_subsets = global_top_5_subsets.sort_values("Avg Error (%)", ignore_index=True)
-            if top_5_subsets.iloc[4]["Avg Error (%)"] > error and not (
-                    transformed_features in global_all_found_features):
-                top_5_subsets.drop([4], axis=0, inplace=True)
-                temp = pd.DataFrame([[transformed_features, error, std_error]],
-                                    columns=["Features", "Avg Error (%)", "STD Error"])
-                global_top_5_subsets = pd.concat([top_5_subsets, temp], ignore_index=True)
-                global_all_found_features.append(transformed_features)
 
 
 # PCC
