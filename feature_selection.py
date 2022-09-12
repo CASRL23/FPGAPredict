@@ -240,7 +240,7 @@ class ExhaustiveSearch:
                  
                 elapsed = time.time() - start
                 
-                if np.array_equal(subset, prev_subset):
+                if np.array_equal(min_subset, prev_subset):
                     same_subset += 1
                 if same_subset >= 3 and same_subset <5:
                     choose = random.randint(choose+1, self.n)
@@ -248,7 +248,7 @@ class ExhaustiveSearch:
                     finish = True 
                 else:
                     choose = choose + 1
-                prev_subset = np.array(subset)
+                prev_subset = np.array(min_subset)
         if top_5_subsets is not None:
             top_5_subsets = top_5_subsets.sort_values("Avg Error (%)")
             excel = pd.ExcelWriter(_name, engine="openpyxl")
