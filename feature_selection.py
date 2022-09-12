@@ -24,6 +24,7 @@ global_all_found_features = []
 count = 0
 printt = True
 
+
 class ExhaustiveSearch:
 
     def __init__(self, estimator, n_splits=5, n=15, min=1, max=None, clustering=False,
@@ -45,7 +46,7 @@ class ExhaustiveSearch:
                 self.max = max
         self.parallel = parallel  # whether to perform parallel processing or not
         self.n_cpu = n_cpu  # number of cpus to use in parallel, only used if parallel = True
-        self.scaling = scaling # whether to perform scaling or not.
+        self.scaling = scaling  # whether to perform scaling or not.
         self.n_splits = n_splits  # int, number of splits with cross validation
         self.n = n  # int, number of features to pass to permutation
         self.min = min  # int, number of minimum features to choose, default is 1
@@ -131,10 +132,8 @@ class ExhaustiveSearch:
 
             # prepare a file to store all feature subsets that give an error < 5%
             top_5_subsets = None
-            processes = []
+            
             thr = 48 * 60 * 60  # if elapsed time is more than 48 hours, stop permutation and output results
-            count = 0  # used to store the top 5 subsets only
-
             # record the start and elapsed time
             start = time.time()
             elapsed = 0
@@ -144,7 +143,6 @@ class ExhaustiveSearch:
                 pnumber = mp.cpu_count() - 1
             elif self.parallel:
                 pnumber = self.n_cpu
-
 
             while choose <= upperLimit and elapsed < thr:
 
@@ -183,7 +181,7 @@ class ExhaustiveSearch:
                         else:
                             process = training_fit(new_x, y, self.estimator, subset)
 
-                    processes.append(process)
+                    
 
                 # wait for all processes to finish
                 if self.parallel:
@@ -195,7 +193,6 @@ class ExhaustiveSearch:
 
                 best_c_subsets = global_best_c_subsets
                 top_5_subsets = global_top_5_subsets
-
 
                 if self.printt:
                     now = datetime.now()
@@ -348,7 +345,6 @@ def permutation_fit(x, y, estimator, subset, n_splits=5, clustering=False,
 
             pred_y = estimator.predict(test_x)
 
-
             if clustering:
 
                 training_labels = estimator.labels_
@@ -358,17 +354,19 @@ def permutation_fit(x, y, estimator, subset, n_splits=5, clustering=False,
                 # check if the clusters are mislabled
 
                 training_clusters = {}  # dictionary of the clusters
-                training_error = 0 # clustering training error
+                training_error = 0  # clustering training error
                 for c in range(n_clusters):
                     cluster_indicies = np.array(np.where(training_labels == c))[0]
                     cluster_bench = training_benchmarks[cluster_indicies]
-                    cluster_error = -1*(np.sum(np.isin(cluster_bench,original_clusters[c])) - cluster_bench.shape[0])
+                    cluster_error = -1 * (np.sum(np.isin(cluster_bench, original_clusters[c])) - cluster_bench.shape[0])
 
                     # if cluster_error is not 0, either cluster misprediction or mislabel has occured
                     if cluster_error > 0:
                         for j in range(n_clusters):
                             if c != j:
-                                temp_error =  -1*(np.sum(np.isin(cluster_bench,original_clusters[j])) - cluster_bench.shape[0])
+                                temp_error = -1 * (
+                                            np.sum(np.isin(cluster_bench, original_clusters[j])) - cluster_bench.shape[
+                                        0])
 
                                 # change the labels if lower error found
                                 if temp_error < cluster_error:
@@ -398,11 +396,10 @@ def permutation_fit(x, y, estimator, subset, n_splits=5, clustering=False,
                 test_y = np.array(test_y)
                 test_y = test_y.flatten()
 
-                error = np.abs(np.divide((pred_y- test_y), test_y) * 100)
+                error = np.abs(np.divide((pred_y - test_y), test_y) * 100)
                 error = list(error)
 
                 all_errors += error
-
 
         # perform 50 runs if the average error is less than 10%
         if np.mean(all_errors) > 10 and repeat == 50:
@@ -426,18 +423,18 @@ def permutation_fit(x, y, estimator, subset, n_splits=5, clustering=False,
         avg_pcc = -1
 
     # update the minimum error and the best subset
-    update_min_error(avg_error, subset, np.std(all_errors), avg_pcc)
+    update_min_error(avg_error, subset, np.std(all_errors), avg_pcc, clustering)
 
 
-
-
-def update_min_error(error,subset, std_error, avg_pcc, clustering, count):
+def update_min_error(error, subset, std_error, avg_pcc, clustering):
     global global_min_error
     global global_min_subset
     global global_found_c_subsets
     global global_best_c_subsets
     global global_top_5_subsets
     global global_all_found_features
+    global count
+    global printt
     # if the error is better the the current best error, update.
     if error < global_min_error:
         global_min_subset = avg_pcc
@@ -456,7 +453,7 @@ def update_min_error(error,subset, std_error, avg_pcc, clustering, count):
 
     # store the top 5 prediction subsets IN ORDER
 
-    elif not clustering:
+    elif not clustering and printt:
 
         transformed_features = list(subset)
         if (count < 5 or global_top_5_subsets.iloc[4]["Avg Error (%)"] > retval[0]) and not \
@@ -471,12 +468,15 @@ def update_min_error(error,subset, std_error, avg_pcc, clustering, count):
             count += 1
         elif count > 5:
             top_5_subsets = global_top_5_subsets.sort_values("Avg Error (%)", ignore_index=True)
-            if top_5_subsets.iloc[4]["Avg Error (%)"] > error and not (transformed_features in global_all_found_features):
+            if top_5_subsets.iloc[4]["Avg Error (%)"] > error and not (
+                    transformed_features in global_all_found_features):
                 top_5_subsets.drop([4], axis=0, inplace=True)
                 temp = pd.DataFrame([[transformed_features, error, std_error]],
                                     columns=["Features", "Avg Error (%)", "STD Error"])
                 global_top_5_subsets = pd.concat([top_5_subsets, temp], ignore_index=True)
                 global_all_found_features.append(transformed_features)
+
+
 # PCC
 '''
     Select using PCC
