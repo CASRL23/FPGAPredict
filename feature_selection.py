@@ -2,7 +2,6 @@
 Feature Selection using Exhaustive Search and PCC
 '''
 import multiprocessing as mp
-from multiprocessing.shared_memory import ShareableList
 import os
 import time
 from itertools import combinations
