@@ -72,8 +72,7 @@ class FPGAPredict:
         self.clustering_features = None  # features used to cluster the dataset
         self.clustering_estimators = params["clustering_estimators"]  # estimators used for each cluster
         self.clusters_features = params["clusters_features"]  # features used for each cluster
-	self.top_clustering_features = []
-
+        self.top_clustering_features = []
         # if the estimator is clustering regression, set up the features and estimators for each cluster
         if params["estimator"] == 0:
             clustering_estimators = zip(list(self.clustering_estimators), list(self.clusters_features))
