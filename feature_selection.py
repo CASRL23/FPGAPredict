@@ -60,12 +60,7 @@ class ExhaustiveSearch:
     def fit(self, x_, _y, _x2=None):
 
         if __name__ == "feature_selection":
-            global global_min_error
-            global global_min_subset
-            global global_found_c_subsets
-            global global_best_c_subsets
-            global global_top_5_subsets
-            global global_all_found_features
+            
 
             # select the highest n PCC ranked features to pass to exhaustive search
             pcc_all = PCC(k=self.n)
@@ -118,7 +113,13 @@ class ExhaustiveSearch:
                     " features by using Exhaustive Search.")
 
             # prepare to start permutation
-
+            global global_min_error
+            global global_min_subset
+            global global_found_c_subsets
+            global global_best_c_subsets
+            global global_top_5_subsets
+            global global_all_found_features
+            
             min_subset = None  # subset with the lowest error
             min_error = np.Inf  # the lowest error
             best_c_subsets = None  # used for clustering only
@@ -132,7 +133,7 @@ class ExhaustiveSearch:
 
             # prepare a file to store all feature subsets that give an error < 5%
             top_5_subsets = None
-            
+
             thr = 48 * 60 * 60  # if elapsed time is more than 48 hours, stop permutation and output results
             # record the start and elapsed time
             start = time.time()
@@ -181,7 +182,7 @@ class ExhaustiveSearch:
                         else:
                             process = training_fit(new_x, y, self.estimator, subset)
 
-                    
+
 
                 # wait for all processes to finish
                 if self.parallel:
