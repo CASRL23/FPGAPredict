@@ -49,9 +49,13 @@ if __name__ == "__main__":
     # save the first and second top clustering features
     if len(fpga_pred.top_clustering_features) > 0:
         first_clustering_features = fpga_pred.top_clustering_features[0]
+    else:
+        first_clustering_features = inputs["clustering_features"]
     if len(fpga_pred.top_clustering_features) > 1:
         second_clustering_features = fpga_pred.top_clustering_features[1]
-
+    else:
+        second_clustering_features = None 
+        
     # get the average error
     avg_error = fpga_pred.get_avg_error()
 
