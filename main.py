@@ -63,7 +63,7 @@ if __name__ == "__main__":
     # turn on true shuffle, random state will be set to None automatically
     fpga_pred.shuffle = True
 
-    ret = fpga_pred.run(target=[inputs["target_feature"]], features=inputs["features"],
+    ret = fpga_pred.run(target=[inputs["target_metric"]], features=inputs["features"],
                         clustering_features=fpga_pred.clustering_features)
     fpga_pred.store_output(ret,excelname1=excelname1,excelname2=excelname2,sheet_name="true_" + str(fpga_pred.n_runs) + "_runs", mode='a')
 
@@ -73,7 +73,7 @@ if __name__ == "__main__":
         fpga_pred.estimator.set_parameters(
             estimators=list(zip([ESTIMATORS[inputs["estimator"]] for i in range(fpga_pred.n_clusters)], features)))
 
-        ret = fpga_pred.run(target=[inputs["target_feature"]], features=inputs["features"],
+        ret = fpga_pred.run(target=[inputs["target_metric"]], features=inputs["features"],
                             clustering_features=fpga_pred.clustering_features)
         avg_error = fpga_pred.get_avg_error()
 
@@ -82,7 +82,7 @@ if __name__ == "__main__":
 
         # turn on true shuffle
         fpga_pred.shuffle = True
-        ret = fpga_pred.run(target=[inputs["target_feature"]], features=inputs["features"],
+        ret = fpga_pred.run(target=[inputs["target_metric"]], features=inputs["features"],
                             clustering_features=fpga_pred.clustering_features)
 
         fpga_pred.store_output(ret, excelname1=excelname1, excelname2=excelname2,
@@ -102,7 +102,7 @@ if __name__ == "__main__":
         fpga_pred.estimator = ESTIMATORS[inputs["estimator"]]
         fpga_pred.clusters_features = None
         # run with the second top clustering features
-        ret = fpga_pred.run(target=[inputs["target_feature"]], features=inputs["features"],
+        ret = fpga_pred.run(target=[inputs["target_metric"]], features=inputs["features"],
                             clustering_features=fpga_pred.clustering_features)
         excelname1, excelname2, features = fpga_pred.store_output(ret)
 
@@ -113,7 +113,7 @@ if __name__ == "__main__":
         # turn on true shuffle, random state will be set to None automatically
         fpga_pred.shuffle = True
 
-        ret = fpga_pred.run(target=[inputs["target_feature"]], features=inputs["features"],
+        ret = fpga_pred.run(target=[inputs["target_metric"]], features=inputs["features"],
                             clustering_features=fpga_pred.clustering_features)
         fpga_pred.store_output(ret, excelname1=excelname1, excelname2=excelname2, sheet_name="true_" + str(fpga_pred.n_runs) + "_runs", mode='a')
 
@@ -124,7 +124,7 @@ if __name__ == "__main__":
             fpga_pred.estimator.set_parameters(
                 estimators=list(zip([ESTIMATORS[inputs["estimator"]] for i in range(fpga_pred.n_clusters)], features)))
 
-            ret = fpga_pred.run(target=[inputs["target_feature"]], features=inputs["features"],
+            ret = fpga_pred.run(target=[inputs["target_metric"]], features=inputs["features"],
                                 clustering_features=fpga_pred.clustering_features)
             avg_error2 = fpga_pred.get_avg_error()
             fpga_pred.store_output(ret, excelname1=excelname1, excelname2=excelname2,
@@ -132,7 +132,7 @@ if __name__ == "__main__":
 
             # turn on true shuffle
             fpga_pred.shuffle = True
-            ret = fpga_pred.run(target=[inputs["target_feature"]], features=inputs["features"],
+            ret = fpga_pred.run(target=[inputs["target_metric"]], features=inputs["features"],
                             clustering_features=fpga_pred.clustering_features)
             fpga_pred.store_output(ret, excelname1=excelname1, excelname2=excelname2,
                                sheet_name="true_" + str(fpga_pred.n_runs) + "runs_clustering", mode='a')
