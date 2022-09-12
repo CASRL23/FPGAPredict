@@ -104,6 +104,7 @@ class ExhaustiveSearch:
 
             min_subset = None
             min_error = np.Inf
+            max_pcc = -np.Inf
             count = 0
 
             choose = self.min  # number of features to start with (default is 1 for example)
@@ -182,6 +183,11 @@ class ExhaustiveSearch:
                     subset = retval[1]
                     std_error = retval[2]
                     avg_pcc = retval[3]
+                    
+                    if error < min_error or (error == min_error and avg_pcc > max_pcc and self.clustering):
+                        min_error = error
+                        min_subset = subset
+                        max_pcc = avg_pcc
                     temp_subset = list(subset)
                     # store the clustering subsets that give 0% error
                     if self.clustering and error == 0 and not (temp_subset in found_c_subsets):
