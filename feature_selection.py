@@ -110,6 +110,7 @@ class ExhaustiveSearch:
             same_subset = 0
             prev_subset = None
             finish = False
+            choose_list = None
             choose = self.min  # number of features to start with (default is 1 for example)
 
             # determine up to how many features to try
@@ -244,7 +245,10 @@ class ExhaustiveSearch:
                 if np.array_equal(min_subset, prev_subset):
                     same_subset += 1
                 if same_subset >= 3 and same_subset <5:
-                    choose = random.randint(choose+1, self.n)
+                    if choose_list is None:
+                        choose_list = [h for h in range(choose+1, self.n+1)]
+                    choose = random.choice(choose_list)
+                    choose_list.remove(choose)
                 elif same_subset >= 5:
                     finish = True 
                 else:
