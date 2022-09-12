@@ -47,7 +47,8 @@ if __name__ == "__main__":
                         clustering_features=inputs["clustering_features"])
 
     # save the first and second top clustering features
-    first_clustering_features = fpga_pred.top_clustering_features[0]
+    if len(fpga_pred.top_clustering_features) > 0:
+        first_clustering_features = fpga_pred.top_clustering_features[0]
     if len(fpga_pred.top_clustering_features) > 1:
         second_clustering_features = fpga_pred.top_clustering_features[1]
 
