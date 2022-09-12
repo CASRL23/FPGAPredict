@@ -432,7 +432,22 @@ def permutation_fit(x, y, estimator, subset, n_splits=5, clustering=False,
             repeat = -1
         else:
             repeat -= 1
+            
     avg_error = np.mean(all_errors)
+    if clustering and avg_error == 0:
+        avg_pcc = 0
+        # iterate through each cluster and find the PCC of the top 22 ranked features
+        for c in range(n_clusters):
+            cluster_indices = np.array(np.where(y == c))[0]
+            cluster_x = x2.iloc[cluster_indices]
+            cluster_y = y_copy.iloc[cluster_indices]
+            pcc = PCC(k=22)
+            pcc.fit(cluster_x, cluster_y)
+            avg_pcc += np.mean(np.abs(pcc.best_pcc))
+
+        avg_pcc = avg_pcc / n_clusters
+    else:
+        avg_pcc = -1
     return avg_error, subset, np.std(all_errors), avg_pcc
 
 
