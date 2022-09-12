@@ -106,7 +106,9 @@ class ExhaustiveSearch:
             min_error = np.Inf
             max_pcc = -np.Inf
             count = 0
-
+            same_subset = 0
+            prev_subset = None
+            finish = False
             choose = self.min  # number of features to start with (default is 1 for example)
 
             # determine up to how many features to try
@@ -129,7 +131,7 @@ class ExhaustiveSearch:
             elif self.parallel:
                 pnumber = self.n_cpu
 
-            while choose <= upperLimit and elapsed < thr:
+            while choose <= upperLimit and elapsed < thr and not finish:
 
                 # prepare for parallel processing
                 if self.parallel:
@@ -235,9 +237,17 @@ class ExhaustiveSearch:
                         xcells_subset)))
                     print("Current min error is %.5f" % (min_error))
                     print("---------")
-
+                 
                 elapsed = time.time() - start
-                choose = choose + 1
+                
+                if np.array_equal(subset, prev_subset):
+                    same_subset += 1
+                if same_subset >= 3 and same_subset <5:
+                    choose = random.randint(choose+1, self.n)
+                elif same_subset >= 5:
+                    finish = True 
+                else:
+                    choose = choose + 1
 
         if top_5_subsets is not None:
             top_5_subsets = top_5_subsets.sort_values("Avg Error (%)")
