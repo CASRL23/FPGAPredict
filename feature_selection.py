@@ -65,7 +65,7 @@ class ExhaustiveSearch:
             global global_best_c_subsets
             global global_top_5_subsets
             global global_all_found_features
-            
+
             # select the highest n PCC ranked features to pass to exhaustive search
             pcc_all = PCC(k=self.n)
             x = pcc_all.fit_transform(x_, _y)
@@ -121,7 +121,7 @@ class ExhaustiveSearch:
             min_subset = None  # subset with the lowest error
             min_error = np.Inf  # the lowest error
             best_c_subsets = None  # used for clustering only
-        
+
             choose = self.min  # number of features to start with (default is 1 for example)
 
             # determine up to how many features to try
@@ -192,10 +192,10 @@ class ExhaustiveSearch:
 
                 min_error = global_min_error
                 min_subset = global_min_subset
-            
+
                 best_c_subsets = global_best_c_subsets
                 top_5_subsets = global_top_5_subsets
-                
+
 
                 if self.printt:
                     now = datetime.now()
@@ -440,8 +440,8 @@ def update_min_error(error,subset, std_error, avg_pcc, clustering, count):
     global global_all_found_features
     # if the error is better the the current best error, update.
     if error < global_min_error:
-        min_subset = avg_pcc
-        min_error = error
+        global_min_subset = avg_pcc
+        global_min_error = error
     temp_subset = list(subset)
 
     # store the clustering subsets that give 0% error
