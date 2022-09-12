@@ -248,7 +248,7 @@ class ExhaustiveSearch:
                     finish = True 
                 else:
                     choose = choose + 1
-
+                prev_subset = np.array(subset)
         if top_5_subsets is not None:
             top_5_subsets = top_5_subsets.sort_values("Avg Error (%)")
             excel = pd.ExcelWriter(_name, engine="openpyxl")
