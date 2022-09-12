@@ -101,31 +101,22 @@ class ExhaustiveSearch:
                     "Selecting the best " + str(type_f) +
                     " features by using Exhaustive Search.")
 
-            # create shared memory variables
+            # initialize variables
 
-            min_subset = [bytes(bytearray([-1 for j in range(self.n)])) for i in range(10)]  # store the top 10 subsets
-            min_error = [np.Inf for i in range(10)]
-            min_std_error = [np.Inf for i in range(10)]
-            max_pcc = [-np.Inf for i in range(10)]
-            min_subset = ShareableList(min_subset, name="min_subset")
-            min_error = ShareableList(min_error, name="min_error")
-            min_std_error = ShareableList(min_std_error, name="min_std_error")
-            index = ShareableList([0], name="index")
-            max_pcc = ShareableList(max_pcc, name="max_pcc")
-            best_c_subsets = None  # used for clustering only
+            min_subset = None
+            min_error = np.Inf
+            count = 0
 
             choose = self.min  # number of features to start with (default is 1 for example)
 
             # determine up to how many features to try
             upperLimit = self.max
-
-            # initialize variables
-
+            
             # prepare a file to store all feature subsets that give an error < 5%
             top_5_subsets = None
             best_c_subsets = None
             all_found_features = []
-            found_c_subsets= []
+            found_c_subsets = []
 
             thr = 48 * 60 * 60  # if elapsed time is more than 48 hours, stop permutation and output results
             # record the start and elapsed time
@@ -146,7 +137,8 @@ class ExhaustiveSearch:
 
                 # find the different possible combinations of features for this iteration
                 subsets = combinations(self.features, choose)
-
+                processes = []
+                
                 # try every subset is subsets
                 for subset in subsets:
                     subset = np.array(subset)
@@ -174,27 +166,26 @@ class ExhaustiveSearch:
                             process = pool.apply_async(training_fit, args=(new_x, y, self.estimator, subset))
                         else:
                             process = training_fit(new_x, y, self.estimator, subset)
-
+                    processes.append(process)
+                
                 # wait for all processes to finish
                 if self.parallel:
                     pool.close()
                     pool.join()
-
-
-                min_error = list(ShareableList(name="min_error"))
-                min_subset = list(ShareableList(name="min_subset"))
-                index = list(ShareableList(name="index"))[0]
-                max_pcc = list(ShareableList(name="max_pcc"))
-                min_std_error = list(ShareableList(name="min_std_error"))
-                for g in range(index):
-                    subset = min_subset[g]
-                    error = min_error[g]
-                    avg_pcc = max_pcc[g]
-                    std_error = min_std_error[g]
+                    
+                for process in processes:
+                    if self.parallel:
+                        retval = process.get()
+                    else:
+                        retval = process 
+                    
+                    error = retval[0]
+                    subset = retval[1]
+                    std_error = retval[2]
+                    avg_pcc = retval[3]
                     temp_subset = list(subset)
-
                     # store the clustering subsets that give 0% error
-                    if clustering and error == 0 and not (temp_subset in found_c_subsets):
+                    if self.clustering and error == 0 and not (temp_subset in found_c_subsets):
                         found_c_subsets.append(temp_subset)
                         temp = pd.DataFrame([[subset, avg_pcc]],
                                             columns=["Clustering Features", "Avg. PCC"])
@@ -205,7 +196,7 @@ class ExhaustiveSearch:
 
                     # store the top 5 prediction subsets IN ORDER
 
-                    elif not clustering and printt:
+                    elif not self.clustering and self.printt:
 
                         transformed_features = list(subset)
                         if (count < 5 or top_5_subsets.iloc[4]["Avg Error (%)"] > error) and not \
@@ -228,6 +219,7 @@ class ExhaustiveSearch:
                                 top_5_subsets = pd.concat([top_5_subsets, temp], ignore_index=True)
                                 all_found_features.append(transformed_features)
 
+                    
 
                 if self.printt:
                     now = datetime.now()
@@ -442,41 +434,7 @@ def permutation_fit(x, y, estimator, subset, n_splits=5, clustering=False,
         else:
             repeat -= 1
     avg_error = np.mean(all_errors)
-    if clustering and avg_error == 0:
-        avg_pcc = 0
-        # iterate through each cluster and find the PCC of the top 22 ranked features
-        for c in range(n_clusters):
-            cluster_indices = np.array(np.where(y == c))[0]
-            cluster_x = x2.iloc[cluster_indices]
-            cluster_y = y_copy.iloc[cluster_indices]
-            pcc = PCC(k=22)
-            pcc.fit(cluster_x, cluster_y)
-            avg_pcc += np.mean(np.abs(pcc.best_pcc))
-
-        avg_pcc = avg_pcc / n_clusters
-    else:
-        avg_pcc = -1
-
-    # update the minimum error and the best subset
-    min_error = ShareableList(name="min_error")
-    min_std_error = ShareableList(name="min_std_error")
-    index = ShareableList(name="index")
-    min_subset = ShareableList(name="min_subset")
-    max_pcc = ShareableList(name="max_pcc")
-    for j in range(index[0]):
-        if (avg_error < min_error[j]) or (clustering and avg_error==min_error[j] and max_pcc[j] <= avg_pcc):
-
-            for i in range(j, index[0]):
-                if i+1 < 10:
-                    min_error[i+1] = min_error[i]
-                    min_subset[i+1] = min_subset[i]
-                    min_std_error[i+1] = min_std_error[i]
-            if index[0] < 10:
-                index[0] += 1
-            min_error[j] = avg_error
-            min_subset[j] = min_subset
-            break
-
+    return avg_error, subset, np.std(all_errors), avg_pcc
 
 
 # PCC
