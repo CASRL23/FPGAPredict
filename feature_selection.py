@@ -405,15 +405,13 @@ def permutation_fit(x, y, estimator, subset, n_splits=5, clustering=False,
                 for c in range(n_clusters):
                     cluster_indicies = np.array(np.where(training_labels == c))[0]
                     cluster_bench = training_benchmarks[cluster_indicies]
-                    cluster_error = -1 * (np.sum(np.isin(cluster_bench, original_clusters[c])) - cluster_bench.shape[0])
+                    cluster_error = np.sum(np.isin(cluster_bench, original_clusters[c], invert=True))
 
                     # if cluster_error is not 0, either cluster misprediction or mislabel has occured
                     if cluster_error > 0:
                         for j in range(n_clusters):
                             if c != j:
-                                temp_error = -1 * (
-                                        np.sum(np.isin(cluster_bench, original_clusters[j])) - cluster_bench.shape[
-                                    0])
+                                temp_error = np.sum(np.isin(cluster_bench, original_clusters[j], invert=True))
 
                                 # change the labels if lower error found
                                 if temp_error < cluster_error:
@@ -421,7 +419,7 @@ def permutation_fit(x, y, estimator, subset, n_splits=5, clustering=False,
                                     new_labels[c] = j
                                 # if the error is 0, no need to check the other clusters (the right cluster was found!)
                                 if cluster_error == 0:
-                                    continue
+                                    break
                     training_error += cluster_error
 
                 testing_error = 0
