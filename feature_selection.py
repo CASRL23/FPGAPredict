@@ -387,28 +387,34 @@ def permutation_fit(x, y, estimator, subset, n_splits=5, clustering=False,
                 # an array used to correct the mislabelling
                 new_labels = [i for i in range(n_clusters)]
                 # check if the clusters are mislabled
-
-                training_clusters = {}  # dictionary of the clusters
-                training_error = 0 # clustering training error
+                training_clusters={}
+                training_error = 0  # clustering training error
+                arr_of_clusters = np.array([])
                 for c in range(n_clusters):
                     cluster_indicies = np.array(np.where(training_labels == c))[0]
-                    cluster_bench = training_benchmarks[cluster_indicies]
-                    cluster_error = -1*(np.sum(np.isin(cluster_bench,original_clusters[c])) - cluster_bench.shape[0])
-                    
+                    arr_of_clusters = np.stack(arr_of_clusters,training_benchmarks[cluster_indicies],index=-1)
+                original_mislabeled_list = []
+                training_mislabeled_list = []
+                for c in range(n_clusters):
+                    cluster_error = np.sum(np.isin(arr_of_clusters[j], original_clusters[k], invert=True))
+
                     # if cluster_error is not 0, either cluster misprediction or mislabel has occured
-                    if cluster_error > 0:
-                        for j in range(n_clusters):
-                            if c != j:
-                                temp_error =  -1*(np.sum(np.isin(cluster_bench,original_clusters[j])) - cluster_bench.shape[0])
-                                
-                                # change the labels if lower error found
-                                if temp_error < cluster_error:
-                                    cluster_error = temp_error
-                                    new_labels[c] = j
-                                # if the error is 0, no need to check the other clusters (the right cluster was found!)
-                                if cluster_error == 0:
-                                    continue
-                    training_error += cluster_error
+                    if cluster_error == arr_of_clusters[c].shape[0]:
+                        original_mislabeled_list.append(c)
+                        training_mislabeled_list.append(c)
+                    else:
+                        training_clusters[c] = cluster_error
+                        training_error += cluster_error
+                if len(original_mislabeled_list) > 0:
+                    for j in original_mislabeled_list:
+                        for k in training_mislabeled_list:
+                            if j != k:
+                                cluster_error = np.sum(np.isin(arr_of_clusters[j], original_clusters[k], invert=True))
+                                if cluster_error != arr_of_clusters[j].shape[0]:
+                                    training_clusters[j] = cluster_error
+
+
+
 
                 testing_error = 0
 
