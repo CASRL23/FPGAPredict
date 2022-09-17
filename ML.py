@@ -79,7 +79,7 @@ class FPGAPredict:
             self.clustering_estimators = list(clustering_estimators)
             self.estimator.set_parameters(estimators=self.clustering_estimators)
         self.scaling = params["scaling"]
-	self.results = results
+        self.results = results
 
     # start FPGAPredict based on the configurations
     def run(self, features=None, target=None, clustering_features=None, output_results=True):
@@ -720,7 +720,7 @@ class FPGAPredict:
         stats = pd.DataFrame(stats, columns=["Average " + str(self.n_runs) + " Runs Error (%)", "STD of Avg Errors",
                                              "RRMSE"], index=["Summary:"])
         results = results.sort_index()
-	self.results = results
+        self.results = results
         results.to_excel(writer1, startrow=row, sheet_name=sheet_name,
                          index_label="Summary of {} runs".format(self.n_runs))
         results.to_excel(writer2, startrow=row, sheet_name=sheet_name,
