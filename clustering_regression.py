@@ -169,10 +169,10 @@ class ClusteringRegression:
         x2 = self.scaler.transform(x2[self.clustering_features])
 
         # predict the clusters of the benchmarks
-        clusters = self.kmeans.predict(x2)
+        labels = self.kmeans.predict(x2)
 
         # convert to the new updated labels
-        clusters = [self.new_labels[clusters[i]] for i in range(len(clusters))]
+        labels = [self.new_labels[clusters[i]] for i in range(len(clusters))]
 
         # predict the target metric for each benchmark and save it in pred_arr
         pred_arr = []
@@ -187,39 +187,28 @@ class ClusteringRegression:
         # create estiamtors array to show the estimators used to predict.
         self.estimators_pred = []
 
-        # iterate through each benchmark
-        for row in range(len(clusters)):
-
-            # get the cluster of the benchmark
-            cluster = clusters[row]
-
-            # get the features of the benchmark
+        # iterate through each cluster
+        for cluster in range(self.n_clusters):
+            cluster_indices = np.array(np.where(labels == cluster))[0]
+            cluster_x = x.iloc[cluster_indices]
             features = self.estimators[cluster][1]
+            cluster_x = cluster_x[features]
+            self.estimators_pred += [self.estimators[cluster][0].__class__.__name__ for i in range(len(cluster_x.index.tolist()))]
 
-            # get input features
-            new_x = x[features].copy().to_numpy()
-
-            # get the scaler and scale
             scaler = self.estimators[cluster][2]
-            new_x = scaler.transform([new_x[row]])
-            # append features and estimator
-            self.features.append(features)
-            self.estimators_pred.append(self.estimators[cluster][0].__class__.__name__)
-
+            cluster_x = scaler.transform(scaler)
+            pred_arr += list(self.estimators[cluster][0].predict(cluster_x))
             # save the coef_ and intercept_
             if self.estimators[cluster][0].__class__.__name__ == "LinearRegression" or self.estimators[cluster][
                 0].__class__.__name__ == "ExponentialRegression":
-                self.coef_.append(self.estimators[cluster][0].coef_)
-                self.intercept_.append(self.estimators[cluster][0].intercept_)
+                self.coef_ += [self.estimators[cluster][0].coef_ for i in range(len(cluster_x.index.tolist()))]
+                self.intercept_ += [self.estimators[cluster][0].intercept_ for i in range(len(cluster_x.index.tolist()))]
             else:
                 self.coef_ = None
                 self.intercept_ = None
 
-            # predict the target metric and append it to the array pred_arr
-            pred_arr.append(self.estimators[cluster][0].predict(new_x)[0])
-
         # save the clusters
-        self.clusters = clusters
+        self.clusters = labels
 
         return np.array(pred_arr)
 
