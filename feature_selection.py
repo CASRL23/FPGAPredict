@@ -367,7 +367,7 @@ def permutation_fit(x, y, estimator, subset, n_splits=5, clustering=False,
         try:
             splits = kfold.split(x, y)
         except ValueError:  # n_splits
-            return 10000, subset, 10000, -1
+            return 10000, subset, 10000, -1, 10000
 
         for train0, test0 in splits:
 
