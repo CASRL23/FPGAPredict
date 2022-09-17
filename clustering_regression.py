@@ -201,7 +201,7 @@ class ClusteringRegression:
 
             # get the scaler and scale
             scaler = self.estimators[cluster][2]
-            new_x = scaler.transform(new_x[row])
+            new_x = scaler.transform([new_x[row]])
             # append features and estimator
             self.features.append(features)
             self.estimators_pred.append(self.estimators[cluster][0].__class__.__name__)
