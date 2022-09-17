@@ -18,7 +18,7 @@ from utils import name_file
 class ExhaustiveSearch:
 
     def __init__(self, estimator, n_splits=5, n=15, min=1, max=None, clustering=False,
-                 scaling=1, n_cpu=None, parallel=True, printt=True):
+                 scaling=1, n_cpu=None, parallel=True, printt=True, nruns_error=10):
         self.estimator = estimator  # ML estimator that will be used
         self.printt = printt
         if n_splits <= 1:
@@ -45,6 +45,7 @@ class ExhaustiveSearch:
         self.target = None  # array-like, name of target features
         self.benchmarks = None  # array-like, name of data points or benchmarks passed
         self.subset = None  # numpy array, indices of the best features subset of the original features
+        self.nruns_error = nruns_error  # if avg error of 1 kfold is below this error, we do 50 runs
 
     # passing x and y as pandas dataframes
     def fit(self, x_, _y, _x2=None):
@@ -115,7 +116,7 @@ class ExhaustiveSearch:
 
             # determine up to how many features to try
             upperLimit = self.max
-            
+
             # prepare a file to store all feature subsets that give an error < 5%
             top_5_subsets = None
             best_c_subsets = None
@@ -142,7 +143,7 @@ class ExhaustiveSearch:
                 # find the different possible combinations of features for this iteration
                 subsets = combinations(self.features, choose)
                 processes = []
-                
+
                 # try every subset is subsets
                 for subset in subsets:
                     subset = np.array(subset)
@@ -157,13 +158,13 @@ class ExhaustiveSearch:
                             process = pool.apply_async(permutation_fit, args=(
                                 new_x, y, self.estimator, subset, self.n_splits, self.clustering,
 
-                                self.scaling, x2))
+                                self.scaling, x2, self.nruns_error))
                         else:
                             # call the function directly if without parallel processing
                             process = permutation_fit(new_x, y, self.estimator, subset, self.n_splits,
                                                       self.clustering,
 
-                                                      self.scaling, x2)
+                                                      self.scaling, x2, self.nruns_error)
 
                     else:  # if on the whole dataset use the function training_fit() instead
                         if self.parallel:
@@ -171,27 +172,31 @@ class ExhaustiveSearch:
                         else:
                             process = training_fit(new_x, y, self.estimator, subset)
                     processes.append(process)
-                
+
                 # wait for all processes to finish
                 if self.parallel:
                     pool.close()
                     pool.join()
-                    
+
                 for process in processes:
                     if self.parallel:
                         retval = process.get()
                     else:
-                        retval = process 
-                    
+                        retval = process
+
                     error = retval[0]
                     subset = retval[1]
                     std_error = retval[2]
                     avg_pcc = retval[3]
-                    
+
                     if error < min_error or (error == min_error and avg_pcc > max_pcc and self.clustering):
                         min_error = error
                         min_subset = subset
                         max_pcc = avg_pcc
+                        # do 50 runs in the next iteration only if the error is less than the maximum error 
+                        if retval[4] < self.nruns_error:
+                            self.nruns_error = retval[4]
+
                     temp_subset = list(subset)
                     # store the clustering subsets that give 0% error
                     if self.clustering and error == 0 and not (temp_subset in found_c_subsets):
@@ -228,8 +233,6 @@ class ExhaustiveSearch:
                                 top_5_subsets = pd.concat([top_5_subsets, temp], ignore_index=True)
                                 all_found_features.append(transformed_features)
 
-                    
-
                 if self.printt:
                     now = datetime.now()
                     # dd/mm/YY H:M:S
@@ -239,18 +242,18 @@ class ExhaustiveSearch:
                         xcells_subset)))
                     print("Current min error is %.5f" % (min_error))
                     print("---------")
-                 
+
                 elapsed = time.time() - start
-                
+
                 if np.array_equal(min_subset, prev_subset):
                     same_subset += 1
-                if same_subset >= 3 and same_subset <5:
+                if same_subset >= 3 and same_subset < 5:
                     if choose_list is None:
-                        choose_list = [h for h in range(choose+1, self.n+1)]
+                        choose_list = [h for h in range(choose + 1, self.n + 1)]
                     choose = random.choice(choose_list)
                     choose_list.remove(choose)
                 elif same_subset >= 5:
-                    finish = True 
+                    finish = True
                 else:
                     choose = choose + 1
                 prev_subset = np.array(min_subset)
@@ -321,7 +324,7 @@ def training_fit(x, y, estimator, subset):
 
 
 def permutation_fit(x, y, estimator, subset, n_splits=5, clustering=False,
-                    scaling=False, x2=None):
+                    scaling=False, x2=None, max_error=10):
     shuffle = True
     repeat = 50
     random_state = 0
@@ -400,27 +403,37 @@ def permutation_fit(x, y, estimator, subset, n_splits=5, clustering=False,
                 new_labels = [i for i in range(n_clusters)]
                 # check if the clusters are mislabled
 
-                training_clusters = {}  # dictionary of the clusters
+                wrong_training_clusters = {}  # dictionary of the clusters that are mispredicted or mislabelled
+                not_checked_original_clusters = list(new_labels)  # list of not checked original_cluster
                 training_error = 0  # clustering training error
                 for c in range(n_clusters):
                     cluster_indicies = np.array(np.where(training_labels == c))[0]
                     cluster_bench = training_benchmarks[cluster_indicies]
                     cluster_error = np.sum(np.isin(cluster_bench, original_clusters[c], invert=True))
+                    if cluster_error == 0:
+                        not_checked_original_clusters.pop(c)
+                        continue
+                    else:
+                        wrong_training_clusters[c] = [cluster_bench, cluster_error]
 
-                    # if cluster_error is not 0, either cluster misprediction or mislabel has occured
-                    if cluster_error > 0:
-                        for j in range(n_clusters):
-                            if c != j:
-                                temp_error = np.sum(np.isin(cluster_bench, original_clusters[j], invert=True))
+                for training_cluster in wrong_training_clusters:
+                    cluster_bench = wrong_training_clusters[training_cluster][0]
+                    min_error = wrong_training_clusters[training_cluster][1]
+                    min_c = training_cluster
+                    for original_cluster in not_checked_original_clusters:
+                        cluster_error = np.sum(np.isin(cluster_bench, original_clusters[original_cluster], invert=True))
+                        if cluster_error == 0:
+                            min_error = cluster_error
+                            min_c = original_cluster
+                            not_checked_original_clusters.pop(original_cluster)
+                            break
+                        else:
+                            if cluster_error < min_error:
+                                min_error = cluster_error
+                                min_c = original_cluster
 
-                                # change the labels if lower error found
-                                if temp_error < cluster_error:
-                                    cluster_error = temp_error
-                                    new_labels[c] = j
-                                # if the error is 0, no need to check the other clusters (the right cluster was found!)
-                                if cluster_error == 0:
-                                    break
-                    training_error += cluster_error
+                    new_labels[training_cluster] = min_c
+                    training_error += min_error
 
                 testing_error = 0
 
@@ -447,11 +460,12 @@ def permutation_fit(x, y, estimator, subset, n_splits=5, clustering=False,
                 all_errors += error
 
         # perform 50 runs if the average error is less than 10%
-        if np.mean(all_errors) > 10 and repeat == 50:
+        if (not clustering and np.mean(all_errors) > max_error and repeat == 50) or (
+                clustering and np.mean(all_errors) != 0 and repeat == 50):
             repeat = -1
         else:
             repeat -= 1
-            
+
     avg_error = np.mean(all_errors)
     if clustering and avg_error == 0:
         avg_pcc = 0
@@ -467,7 +481,7 @@ def permutation_fit(x, y, estimator, subset, n_splits=5, clustering=False,
         avg_pcc = avg_pcc / n_clusters
     else:
         avg_pcc = -1
-    return avg_error, subset, np.std(all_errors), avg_pcc
+    return avg_error, subset, np.std(all_errors), avg_pcc, np.amax(all_errors)
 
 
 # PCC
