@@ -79,7 +79,7 @@ class FPGAPredict:
             self.clustering_estimators = list(clustering_estimators)
             self.estimator.set_parameters(estimators=self.clustering_estimators)
         self.scaling = params["scaling"]
-        self.results = results
+        self.results = None # a dataframe of the results, created after a call to store_output
 
     # start FPGAPredict based on the configurations
     def run(self, features=None, target=None, clustering_features=None, output_results=True):
