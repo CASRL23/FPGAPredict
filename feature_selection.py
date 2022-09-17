@@ -342,7 +342,7 @@ def permutation_fit(x, y, estimator, subset, n_splits=5, clustering=False,
         benchmarks = np.array(x.index)
         for c in range(n_clusters):
             cluster_indicies = np.array(np.where(y == c))[0]
-            original_clusters[c] = benchmarks[cluster_indicies]
+            original_clusters[c] = cluster_indicies
 
         y = pd.DataFrame(y)
     # record the error rate of every iteration here
@@ -409,7 +409,7 @@ def permutation_fit(x, y, estimator, subset, n_splits=5, clustering=False,
                 for c in range(n_clusters):
                     cluster_indicies = np.array(np.where(training_labels == c))[0]
                     cluster_bench = training_benchmarks[cluster_indicies]
-                    cluster_error = np.sum(np.isin(cluster_bench, original_clusters[c], invert=True))
+                    cluster_error = np.sum(np.isin(cluster_bench, benchmarks[original_clusters[c]], invert=True))
                     if cluster_error == 0:
                         not_checked_original_clusters.remove(c)
                         continue
@@ -421,7 +421,7 @@ def permutation_fit(x, y, estimator, subset, n_splits=5, clustering=False,
                     min_error = wrong_training_clusters[training_cluster][1]
                     min_c = training_cluster
                     for original_cluster in not_checked_original_clusters:
-                        cluster_error = np.sum(np.isin(cluster_bench, original_clusters[original_cluster], invert=True))
+                        cluster_error = np.sum(np.isin(cluster_bench, benchmarks[original_clusters[original_cluster]], invert=True))
                         if cluster_error == 0:
                             min_error = cluster_error
                             min_c = original_cluster
@@ -471,7 +471,7 @@ def permutation_fit(x, y, estimator, subset, n_splits=5, clustering=False,
         avg_pcc = 0
         # iterate through each cluster and find the PCC of the top 22 ranked features
         for c in range(n_clusters):
-            cluster_indices = np.array(np.where(y == c))[0]
+            cluster_indices = original_clusters[c]
             cluster_x = x2.iloc[cluster_indices]
             cluster_y = y_copy.iloc[cluster_indices]
             pcc = PCC(k=22)
