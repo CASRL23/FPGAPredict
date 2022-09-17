@@ -460,8 +460,7 @@ def permutation_fit(x, y, estimator, subset, n_splits=5, clustering=False,
                 all_errors += error
 
         # perform 50 runs if the average error is less than 10%
-        if (not clustering and np.mean(all_errors) > max_error and repeat == 50) or (
-                clustering and np.mean(all_errors) != 0 and repeat == 50):
+        if (np.mean(all_errors) > max_error and repeat == 50):
             repeat = -1
         else:
             repeat -= 1
