@@ -431,7 +431,7 @@ class FPGAPredict:
                 test_x_before_scaling = np.copy(test_x)
 
                 # scale the training and testing data
-                if self.scaling != 0:
+                if self.scaling != 0 and self.estimator.__class__.__name__ != "ClusteringRegression":
                     if self.scaling == 1 and self.estimator.__class__.__name__ != "ExponentialRegression":
                         if self.printt and p < 10:
                             print("FPGAPredict: standard scaling will be performed on the input features\n")
