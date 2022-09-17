@@ -411,7 +411,7 @@ def permutation_fit(x, y, estimator, subset, n_splits=5, clustering=False,
                     cluster_bench = training_benchmarks[cluster_indicies]
                     cluster_error = np.sum(np.isin(cluster_bench, original_clusters[c], invert=True))
                     if cluster_error == 0:
-                        not_checked_original_clusters.pop(c)
+                        not_checked_original_clusters.remove(c)
                         continue
                     else:
                         wrong_training_clusters[c] = [cluster_bench, cluster_error]
@@ -425,7 +425,7 @@ def permutation_fit(x, y, estimator, subset, n_splits=5, clustering=False,
                         if cluster_error == 0:
                             min_error = cluster_error
                             min_c = original_cluster
-                            not_checked_original_clusters.pop(original_cluster)
+                            not_checked_original_clusters.remove(original_cluster)
                             break
                         else:
                             if cluster_error < min_error:
