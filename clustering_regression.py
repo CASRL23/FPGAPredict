@@ -172,7 +172,7 @@ class ClusteringRegression:
         labels = self.kmeans.predict(x2)
 
         # convert to the new updated labels
-        labels = [self.new_labels[clusters[i]] for i in range(len(clusters))]
+        labels = [self.new_labels[labels[i]] for i in range(len(labels))]
 
         # predict the target metric for each benchmark and save it in pred_arr
         pred_arr = []
