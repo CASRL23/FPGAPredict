@@ -85,7 +85,7 @@ if __name__ == "__main__":
 
         fpga_pred.store_output(ret, excelname1=excelname1, excelname2=excelname2,
                                sheet_name="seeded_" + str(fpga_pred.n_runs) + "runs_clustering", mode='a')
-
+        test_df1 = fpga_pred.results 
         # turn on true shuffle
         fpga_pred.shuffle = True
         ret = fpga_pred.run(target=[inputs["target_metric"]], features=inputs["features"],
@@ -136,7 +136,7 @@ if __name__ == "__main__":
             fpga_pred.store_output(ret, excelname1=excelname1, excelname2=excelname2,
                                    sheet_name="seeded_" + str(fpga_pred.n_runs) + "runs_clustering", mode='a')
             
-            test_df = fpga_pred.results 
+            test_df2 = fpga_pred.results 
             # turn on true shuffle
             fpga_pred.shuffle = True
             ret = fpga_pred.run(target=[inputs["target_metric"]], features=inputs["features"],
@@ -150,10 +150,12 @@ if __name__ == "__main__":
         print("\nThe best clustering features are: %s with an average error of %.2f %%" % (
         second_clustering_features, avg_error2))
         print("The output file was saved as %s" % second_excelname1)
+        test_df = test_df2
     elif inputs["n_clusters"] > 1:
         print("\nThe best clustering features are %s with an average error of %.2f %%" % (
         first_clustering_features, avg_error))
         print("The output file was saved as %s" % first_excelname1)
+        test_df = test_df1
     # check if we are doing regression test
     if inputs["regression_test"] != "None":
         real_file = inputs["regression_test"]
