@@ -135,13 +135,14 @@ class ClusteringRegression:
             # take the input features of only the benchmarks of this cluster
             new_x = new_x.copy().to_numpy()[cluster_indices]
 
+            # take the target metric of only the benchmarks of this cluster
+            new_y = y.copy().to_numpy()[cluster_indices]
+
             if self.estimators[c][0].__class__.__name__ != "ExponentialRegression":
                 scaler = StandardScaler()
             else:
                 scaler = MinMaxScaler(feature_range=(10, 11))
-            new_x = scaler.fit_transform(new_x,new_y)
-            # take the output feature of only the benchmarks of this cluster
-            new_y = y.copy().to_numpy()[cluster_indices]
+            new_x = scaler.fit_transform(new_x, new_y)
 
             # create a copy of the estimator of this cluster
             self.estimators[c][0] = copy(self.estimators[c][0])
@@ -197,7 +198,7 @@ class ClusteringRegression:
 
             # get input features
             new_x = x[features].copy().to_numpy()
-            
+
             # get the scaler and scale
             scaler = self.estimators[cluster][2]
             new_x = scaler.transform(new_x)
