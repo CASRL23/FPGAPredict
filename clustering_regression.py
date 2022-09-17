@@ -216,7 +216,7 @@ class ClusteringRegression:
                 self.intercept_ = None
 
             # predict the target metric and append it to the array pred_arr
-            pred_arr.append(self.estimators[cluster][0].predict([new_x])[0])
+            pred_arr.append(self.estimators[cluster][0].predict(new_x)[0])
 
         # save the clusters
         self.clusters = clusters
