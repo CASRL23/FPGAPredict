@@ -2,11 +2,10 @@ from sklearn.cluster import KMeans
 import numpy as np
 import pandas as pd
 import sklearn
-from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import StandardScaler, MinMaxScaler
 
 
 class ClusteringRegression:
-
     '''
         Clustering Regression Initialization Function.
         estimators: A 2D array of the estimator and features to use
@@ -17,6 +16,7 @@ class ClusteringRegression:
         clustering_features: the name of the features used to cluster the data set.
         original_clusters: a dictionary of the original clusters with the benchmarks names.
     '''
+
     def __init__(self, estimators=None, clustering_features=None, original_clusters=None):
         if estimators is not None:
             self.estimators = list(estimators)
@@ -44,6 +44,7 @@ class ClusteringRegression:
     clustering_features: the name of the features used to cluster the data set.
     original_clusters: a dictionary of the original clusters with the benchmarks names.
     '''
+
     def set_parameters(self, estimators=None, clustering_features=None, original_clusters=None):
 
         if estimators is not None:
@@ -60,11 +61,12 @@ class ClusteringRegression:
 
     '''
     creates the cluster and fits the estimator for each cluster.
-    
+
     x: a pandas dataframe of the input features.
     y: a pandas dataframe of the target feature.
     x2: a pandas dataframe of the clustering features.
     '''
+
     def fit(self, x, y, x2=None):
         if x2 is None:
             x2 = x
@@ -133,6 +135,11 @@ class ClusteringRegression:
             # take the input features of only the benchmarks of this cluster
             new_x = new_x.copy().to_numpy()[cluster_indices]
 
+            if self.estimators[c][0].__class__.__name__ != "ExponentialRegression":
+                scaler = StandardScaler()
+            else:
+                scaler = MinMaxScaler(feature_range=(10, 11))
+            new_x = scaler.fit_transform(new_x,new_y)
             # take the output feature of only the benchmarks of this cluster
             new_y = y.copy().to_numpy()[cluster_indices]
 
@@ -141,6 +148,7 @@ class ClusteringRegression:
 
             # fit the estimator for this cluster
             self.estimators[c][0].fit(new_x, new_y)
+            self.estimators[c].append(scaler)
 
         # save the new labels to use when predicting new data
         self.new_labels = new_labels
@@ -149,9 +157,10 @@ class ClusteringRegression:
     predicts the target metric for new benchmarks. 
     x is a pandas dataframe of the input features for the new benchmarks.
     x2 is another pandas dataframe of the clustering features for the same new benchmarks.
-    
+
     x and x2 must have the same benchmarks and in the same order.
     '''
+
     def predict(self, x, x2=None):
         if x2 is None:
             x2 = x
@@ -188,7 +197,10 @@ class ClusteringRegression:
 
             # get input features
             new_x = x[features].copy().to_numpy()
-
+            
+            # get the scaler and scale
+            scaler = self.estimators[cluster][2]
+            new_x = scaler.transform(new_x)
             # append features and estimator
             self.features.append(features)
             self.estimators_pred.append(self.estimators[cluster][0].__class__.__name__)
@@ -213,6 +225,7 @@ class ClusteringRegression:
     '''
     creates a copy in memory of the estimator with the same parameters
     '''
+
     def copy(self):
         for i in range(len(self.estimators)):
             self.estimators[i][0] = copy(self.estimators[i][0])
@@ -223,6 +236,7 @@ class ClusteringRegression:
     '''
     returns a string representation of this class.
     '''
+
     def __repr__(self):
         args = ""
         prev = False
