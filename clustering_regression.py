@@ -187,7 +187,9 @@ class ClusteringRegression:
         # create an intercept_ and coef_ arrays. Used when estimator is Linear or Exponential regression
         self.intercept_ = []
         self.coef_ = []
-
+        
+        # save the predicted clusters
+        self.clusters = []
         # create features array to show the features used to predict.
         self.features = []
 
@@ -201,6 +203,7 @@ class ClusteringRegression:
             if len(cluster_indices) == 0:
                 continue
             cluster = self.new_labels[i]
+            
             cluster_x = x.iloc[cluster_indices]
             features = self.estimators[cluster][1]
             cluster_x = cluster_x[features]
@@ -212,6 +215,7 @@ class ClusteringRegression:
             for j in range(n_benchmarks):
                 self.estimators_pred.append(self.estimators[cluster][0].__class__.__name__)
                 self.features.append(features)
+                self.clusters.append(cluster)
                 if self.estimators[cluster][0].__class__.__name__ == "LinearRegression" or self.estimators[cluster][
                     0].__class__.__name__ == "ExponentialRegression":
                     self.coef_.append(self.estimators[cluster][0].coef_)
@@ -220,8 +224,7 @@ class ClusteringRegression:
         if len(self.coef_) == 0:
             self.coef_ = None
             self.intercept_ = None
-        # save the clusters
-        self.clusters = labels
+        
 
         return np.array(pred_arr)
 
