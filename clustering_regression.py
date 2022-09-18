@@ -67,9 +67,13 @@ class ClusteringRegression:
     x2: a pandas dataframe of the clustering features.
     '''
 
-    def fit(self, x, y, x2=None):
-        if x2 is None:
-            x2 = x
+    def fit(self, _x, _y, _x2=None):
+        if _x2 is None:
+            x2 = _x.copy()
+        else:
+            x2 = _x2.copy()
+        x = _x.copy()
+        y = _y.copy()
         self.clustering_features = list(np.copy(self.clustering_features))
 
         # save the training benchmarks name
@@ -165,9 +169,12 @@ class ClusteringRegression:
     x and x2 must have the same benchmarks and in the same order.
     '''
 
-    def predict(self, x, x2=None):
-        if x2 is None:
-            x2 = x
+    def predict(self, _x, _x2=None):
+        if _x2 is None:
+            x2 = _x.copy()
+        else:
+            x2 = _x2.copy()
+        x = _x.copy()
         # scale the clustering features
         x2 = self.scaler.transform(x2[self.clustering_features])
 
