@@ -205,10 +205,7 @@ class ClusteringRegression:
             features = self.estimators[cluster][1]
             cluster_x = cluster_x[features]
             n_benchmarks = len(cluster_x.index.tolist())
-
-            self.estimators_pred += [self.estimators[cluster][0].__class__.__name__ for i in
-                                     range(len(cluster_x.index.tolist()))]
-
+            
             scaler = self.estimators[cluster][2]
             cluster_x = scaler.transform(cluster_x)
             pred_arr += list(self.estimators[cluster][0].predict(cluster_x))
