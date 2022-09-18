@@ -196,7 +196,7 @@ class ClusteringRegression:
             self.estimators_pred += [self.estimators[cluster][0].__class__.__name__ for i in range(len(cluster_x.index.tolist()))]
 
             scaler = self.estimators[cluster][2]
-            cluster_x = scaler.transform(scaler)
+            cluster_x = scaler.transform(cluster_x)
             pred_arr += list(self.estimators[cluster][0].predict(cluster_x))
             # save the coef_ and intercept_
             if self.estimators[cluster][0].__class__.__name__ == "LinearRegression" or self.estimators[cluster][
