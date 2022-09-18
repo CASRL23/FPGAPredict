@@ -149,7 +149,10 @@ class ClusteringRegression:
 
             # fit the estimator for this cluster
             self.estimators[c][0].fit(new_x, new_y)
-            self.estimators[c].append(scaler)
+            if len(self.estimators[c]) < 3:
+                self.estimators[c].append(scaler)
+            else:
+                self.estimators[c][2] = scaler
 
         # save the new labels to use when predicting new data
         self.new_labels = new_labels
@@ -171,9 +174,6 @@ class ClusteringRegression:
         # predict the clusters of the benchmarks
         labels = self.kmeans.predict(x2)
 
-        # convert to the new updated labels
-        labels = [self.new_labels[labels[i]] for i in range(len(labels))]
-
         # predict the target metric for each benchmark and save it in pred_arr
         pred_arr = []
 
@@ -188,25 +188,32 @@ class ClusteringRegression:
         self.estimators_pred = []
 
         # iterate through each cluster
-        for cluster in range(self.n_clusters):
-            cluster_indices = np.array(np.where(labels == cluster))[0]
+        for i in range(self.n_clusters):
+
+            cluster_indices = np.array(np.where(labels == i))[0]
+            cluster = self.new_labels[i]
             cluster_x = x.iloc[cluster_indices]
             features = self.estimators[cluster][1]
             cluster_x = cluster_x[features]
-            self.estimators_pred += [self.estimators[cluster][0].__class__.__name__ for i in range(len(cluster_x.index.tolist()))]
+            n_benchmarks = len(cluster_x.index.tolist())
+
+            self.estimators_pred += [self.estimators[cluster][0].__class__.__name__ for i in
+                                     range(len(cluster_x.index.tolist()))]
 
             scaler = self.estimators[cluster][2]
             cluster_x = scaler.transform(cluster_x)
             pred_arr += list(self.estimators[cluster][0].predict(cluster_x))
-            # save the coef_ and intercept_
-            if self.estimators[cluster][0].__class__.__name__ == "LinearRegression" or self.estimators[cluster][
-                0].__class__.__name__ == "ExponentialRegression":
-                self.coef_ += [self.estimators[cluster][0].coef_ for i in range(len(cluster_x.index.tolist()))]
-                self.intercept_ += [self.estimators[cluster][0].intercept_ for i in range(len(cluster_x.index.tolist()))]
-            else:
-                self.coef_ = None
-                self.intercept_ = None
+            for j in range(n_benchmarks):
+                self.estimators_pred.append(self.estimators[cluster][0].__class__.__name__)
+                self.features.append(features)
+                if self.estimators[cluster][0].__class__.__name__ == "LinearRegression" or self.estimators[cluster][
+                    0].__class__.__name__ == "ExponentialRegression":
+                    self.coef_.append(self.estimators[cluster][0].coef_)
+                    self.intercept_.append(self.estimators[cluster][0].intercept_)
 
+        if len(self.coef_) == 0:
+            self.coef_ = None
+            self.intercept_ = None
         # save the clusters
         self.clusters = labels
 
