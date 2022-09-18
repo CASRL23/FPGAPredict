@@ -405,6 +405,7 @@ def permutation_fit(x, y, estimator, subset, n_splits=5, clustering=False,
                     cluster_bench = training_benchmarks[cluster_indicies]
                     cluster_error = np.sum(np.isin(cluster_bench, original_clusters[c], invert=True))
                     if cluster_error == 0:
+                        continue
 
                     # if cluster_error is not 0, either cluster misprediction or mislabel has occured
                     if cluster_error > 0:
