@@ -668,7 +668,6 @@ class FPGAPredict:
         else:
             J = 10
         for cluster in range(len(all_args["results"])):
-
             summaries_avg = pd.concat(all_args["results"][cluster]).groupby(level=0).mean()
             if self.estimator.__class__.__name__ == "ClusteringRegression":
                 summaries_avg = summaries_avg[
