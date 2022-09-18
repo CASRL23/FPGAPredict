@@ -191,6 +191,8 @@ class ClusteringRegression:
         for i in range(self.n_clusters):
 
             cluster_indices = np.array(np.where(labels == i))[0]
+            if len(cluster_indices) == 0:
+                continue
             cluster = self.new_labels[i]
             cluster_x = x.iloc[cluster_indices]
             features = self.estimators[cluster][1]
