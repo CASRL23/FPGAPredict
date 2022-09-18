@@ -402,8 +402,6 @@ def permutation_fit(x, y, estimator, subset, n_splits=5, clustering=False,
                 training_error = 0  # clustering training error
                 for c in range(n_clusters):
                     cluster_indicies = np.array(np.where(training_labels == c))[0]
-                    if len(cluster_indicies) == 0:
-                        continue
                     cluster_bench = training_benchmarks[cluster_indicies]
                     cluster_error = np.sum(np.isin(cluster_bench, original_clusters[c], invert=True))
                     if cluster_error == 0:
