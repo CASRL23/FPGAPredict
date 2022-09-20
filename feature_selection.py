@@ -421,19 +421,23 @@ def permutation_fit(x, y, estimator, subset, n_splits=5, clustering=False,
                     cluster_bench = wrong_training_clusters[training_cluster][0]
                     min_error = wrong_training_clusters[training_cluster][1]
                     min_c = training_cluster
+                    found_better = False
                     for original_cluster in not_checked_original_clusters:
                         cluster_error = np.sum(np.isin(cluster_bench, benchmarks[original_clusters[original_cluster]], invert=True))
                         if cluster_error == 0:
                             min_error = cluster_error
                             min_c = original_cluster
+                            found_better = True
                             break
                         else:
                             if cluster_error < min_error:
                                 min_error = cluster_error
                                 min_c = original_cluster
+                                found_better = True 
 
                     new_labels[training_cluster] = min_c
-                    not_checked_original_clusters.remove(min_c)
+                    if found_better:
+                        not_checked_original_clusters.remove(min_c)
                     training_error += min_error
 
                 testing_error = 0
