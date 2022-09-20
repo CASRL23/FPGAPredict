@@ -193,7 +193,7 @@ class ExhaustiveSearch:
                         min_error = error
                         min_subset = subset
                         max_pcc = avg_pcc
-                        # do 50 runs in the next iteration only if the error is less than the maximum error 
+                        # do 50 runs in the next iteration only if the error is less than the maximum error
                         if retval[4] < self.nruns_error:
                             self.nruns_error = retval[4]
 
@@ -404,7 +404,7 @@ def permutation_fit(x, y, estimator, subset, n_splits=5, clustering=False,
                 # check if the clusters are mislabled
 
                 wrong_training_clusters = {}  # dictionary of the clusters that are mispredicted or mislabelled
-                
+
                 not_checked_original_clusters = []  # list of not checked original_cluster
                 training_error = 0  # clustering training error
                 for c in range(n_clusters):
@@ -426,7 +426,6 @@ def permutation_fit(x, y, estimator, subset, n_splits=5, clustering=False,
                         if cluster_error == 0:
                             min_error = cluster_error
                             min_c = original_cluster
-                            not_checked_original_clusters.remove(original_cluster)
                             break
                         else:
                             if cluster_error < min_error:
