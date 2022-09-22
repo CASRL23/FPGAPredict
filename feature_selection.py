@@ -390,32 +390,43 @@ def permutation_fit(x, y, estimator, subset, n_splits=5, clustering=False,
                 training_clusters={}
                 training_error = 0  # clustering training error
                 arr_of_clusters = np.array([])
+
+                #make array of arrays of each cluster containing benchmarks in that cluster.
                 for c in range(n_clusters):
                     cluster_indicies = np.array(np.where(training_labels == c))[0]
                     arr_of_clusters = np.stack(arr_of_clusters,training_benchmarks[cluster_indicies],index=-1)
                 original_mislabeled_list = []
-                training_mislabeled_list = []
+                training_mislabeled_dict = {}
+                #compare each training cluster to each original cluster, and return the total number of mispredicted benchmarks
                 for c in range(n_clusters):
                     cluster_error = np.sum(np.isin(arr_of_clusters[j], original_clusters[k], invert=True))
 
-                    # if cluster_error is not 0, either cluster misprediction or mislabel has occured
-                    if cluster_error == arr_of_clusters[c].shape[0]:
+                    # if cluster_error is more than 50% of the benchmarks in the cluster (rounded down) then it could be mislabelled
+                    if cluster_error > arr_of_clusters[c].shape[0]//2:
                         original_mislabeled_list.append(c)
-                        training_mislabeled_list.append(c)
+                        training_mislabeled_dict[c] = cluster_error
+                        training_clusters[c] = cluster_error
+                    #else, just make a dictionary of the label and the error for that label
                     else:
                         training_clusters[c] = cluster_error
-                        training_error += cluster_error
+                break_flag = False
                 if len(original_mislabeled_list) > 0:
                     for j in original_mislabeled_list:
-                        for k in training_mislabeled_list:
-                            if j != k:
-                                cluster_error = np.sum(np.isin(arr_of_clusters[j], original_clusters[k], invert=True))
-                                if cluster_error != arr_of_clusters[j].shape[0]:
-                                    training_clusters[j] = cluster_error
-
-
-
-
+                        if not break_flag:
+                            for k in training_mislabeled_dict:
+                                if j != k:
+                                    cluster_error = np.sum(np.isin(arr_of_clusters[k], original_clusters[j], invert=True))
+                                    #if the error is less than it is currently, save this as the new error rate.
+                                    #NOTE: the original cluster j matches up to the training cluster k in this case
+                                    if cluster_error < training_clusters[k]:
+                                        training_clusters[j] = cluster_error
+                                        #if we got more than half of the benchmarks right, this must be the best pairing so we can stop looking
+                                        if cluster_error < arr_of_clusters[c].shape[0]/2:
+                                            original_mislabeled_list.remove(j)
+                                            del training_mislabeled_dict[k]
+                                            break_flag = True
+                        else:
+                            continue
                 testing_error = 0
 
                 for a in range(len(list(pred_y))):
