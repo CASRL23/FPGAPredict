@@ -2,11 +2,10 @@ from sklearn.cluster import KMeans
 import numpy as np
 import pandas as pd
 import sklearn
-from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import StandardScaler, MinMaxScaler
 
 
 class ClusteringRegression:
-
     '''
         Clustering Regression Initialization Function.
         estimators: A 2D array of the estimator and features to use
@@ -17,6 +16,7 @@ class ClusteringRegression:
         clustering_features: the name of the features used to cluster the data set.
         original_clusters: a dictionary of the original clusters with the benchmarks names.
     '''
+
     def __init__(self, estimators=None, clustering_features=None, original_clusters=None):
         if estimators is not None:
             self.estimators = list(estimators)
@@ -44,6 +44,7 @@ class ClusteringRegression:
     clustering_features: the name of the features used to cluster the data set.
     original_clusters: a dictionary of the original clusters with the benchmarks names.
     '''
+
     def set_parameters(self, estimators=None, clustering_features=None, original_clusters=None):
 
         if estimators is not None:
@@ -60,14 +61,19 @@ class ClusteringRegression:
 
     '''
     creates the cluster and fits the estimator for each cluster.
-    
+
     x: a pandas dataframe of the input features.
     y: a pandas dataframe of the target feature.
     x2: a pandas dataframe of the clustering features.
     '''
-    def fit(self, x, y, x2=None):
-        if x2 is None:
-            x2 = x
+
+    def fit(self, _x, _y, _x2=None):
+        if _x2 is None:
+            x2 = _x.copy()
+        else:
+            x2 = _x2.copy()
+        x = _x.copy()
+        y = _y.copy()
         self.clustering_features = list(np.copy(self.clustering_features))
 
         # save the training benchmarks name
@@ -133,14 +139,24 @@ class ClusteringRegression:
             # take the input features of only the benchmarks of this cluster
             new_x = new_x.copy().to_numpy()[cluster_indices]
 
-            # take the output feature of only the benchmarks of this cluster
+            # take the target metric of only the benchmarks of this cluster
             new_y = y.copy().to_numpy()[cluster_indices]
+
+            if self.estimators[c][0].__class__.__name__ != "ExponentialRegression":
+                scaler = StandardScaler()
+            else:
+                scaler = MinMaxScaler(feature_range=(10, 11))
+            new_x = scaler.fit_transform(new_x, new_y)
 
             # create a copy of the estimator of this cluster
             self.estimators[c][0] = copy(self.estimators[c][0])
 
             # fit the estimator for this cluster
             self.estimators[c][0].fit(new_x, new_y)
+            if len(self.estimators[c]) < 3:
+                self.estimators[c].append(scaler)
+            else:
+                self.estimators[c][2] = scaler
 
         # save the new labels to use when predicting new data
         self.new_labels = new_labels
@@ -149,20 +165,21 @@ class ClusteringRegression:
     predicts the target metric for new benchmarks. 
     x is a pandas dataframe of the input features for the new benchmarks.
     x2 is another pandas dataframe of the clustering features for the same new benchmarks.
-    
+
     x and x2 must have the same benchmarks and in the same order.
     '''
-    def predict(self, x, x2=None):
-        if x2 is None:
-            x2 = x
+
+    def predict(self, _x, _x2=None):
+        if _x2 is None:
+            x2 = _x.copy()
+        else:
+            x2 = _x2.copy()
+        x = _x.copy()
         # scale the clustering features
         x2 = self.scaler.transform(x2[self.clustering_features])
 
         # predict the clusters of the benchmarks
-        clusters = self.kmeans.predict(x2)
-
-        # convert to the new updated labels
-        clusters = [self.new_labels[clusters[i]] for i in range(len(clusters))]
+        labels = self.kmeans.predict(x2)
 
         # predict the target metric for each benchmark and save it in pred_arr
         pred_arr = []
@@ -170,49 +187,51 @@ class ClusteringRegression:
         # create an intercept_ and coef_ arrays. Used when estimator is Linear or Exponential regression
         self.intercept_ = []
         self.coef_ = []
-
+        
+        # save the predicted clusters
+        self.clusters = []
         # create features array to show the features used to predict.
         self.features = []
 
         # create estiamtors array to show the estimators used to predict.
         self.estimators_pred = []
 
-        # iterate through each benchmark
-        for row in range(len(clusters)):
+        # iterate through each cluster
+        for i in range(self.n_clusters):
 
-            # get the cluster of the benchmark
-            cluster = clusters[row]
-
-            # get the features of the benchmark
+            cluster_indices = np.array(np.where(labels == i))[0]
+            if len(cluster_indices) == 0:
+                continue
+            cluster = self.new_labels[i]
+            
+            cluster_x = x.iloc[cluster_indices]
             features = self.estimators[cluster][1]
+            cluster_x = cluster_x[features]
+            n_benchmarks = len(cluster_x.index.tolist())
+            
+            scaler = self.estimators[cluster][2]
+            cluster_x = scaler.transform(cluster_x)
+            pred_arr += list(self.estimators[cluster][0].predict(cluster_x))
+            for j in range(n_benchmarks):
+                self.estimators_pred.append(self.estimators[cluster][0].__class__.__name__)
+                self.features.append(features)
+                self.clusters.append(cluster)
+                if self.estimators[cluster][0].__class__.__name__ == "LinearRegression" or self.estimators[cluster][
+                    0].__class__.__name__ == "ExponentialRegression":
+                    self.coef_.append(self.estimators[cluster][0].coef_)
+                    self.intercept_.append(self.estimators[cluster][0].intercept_)
 
-            # get input features
-            new_x = x[features].copy().to_numpy()
-
-            # append features and estimator
-            self.features.append(features)
-            self.estimators_pred.append(self.estimators[cluster][0].__class__.__name__)
-
-            # save the coef_ and intercept_
-            if self.estimators[cluster][0].__class__.__name__ == "LinearRegression" or self.estimators[cluster][
-                0].__class__.__name__ == "ExponentialRegression":
-                self.coef_.append(self.estimators[cluster][0].coef_)
-                self.intercept_.append(self.estimators[cluster][0].intercept_)
-            else:
-                self.coef_ = None
-                self.intercept_ = None
-
-            # predict the target metric and append it to the array pred_arr
-            pred_arr.append(self.estimators[cluster][0].predict([new_x[row]])[0])
-
-        # save the clusters
-        self.clusters = clusters
+        if len(self.coef_) == 0:
+            self.coef_ = None
+            self.intercept_ = None
+        
 
         return np.array(pred_arr)
 
     '''
     creates a copy in memory of the estimator with the same parameters
     '''
+
     def copy(self):
         for i in range(len(self.estimators)):
             self.estimators[i][0] = copy(self.estimators[i][0])
@@ -223,6 +242,7 @@ class ClusteringRegression:
     '''
     returns a string representation of this class.
     '''
+
     def __repr__(self):
         args = ""
         prev = False
