@@ -541,8 +541,8 @@ class PCC:
             all_pcc = np.array(all_pcc)
             mask = np.argsort(all_pcc)[-self.k:]
             best_pcc = sorted(all_pcc)[-self.k:]
-        self.mask = mask
-        self.best_pcc = best_pcc
+        self.mask = mask #TODO part of testcase
+        self.best_pcc = best_pcc #TODO part of testcase
         return mask
 
     def transform(self, _x):
