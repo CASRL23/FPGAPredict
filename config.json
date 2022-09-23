@@ -21,5 +21,6 @@
   "clustering_perm_max": "5",
   "n_cpu": "None",
   "parallel": "True",
-  "print": "True"
+  "print": "True",
+  "regression_test":"None"
 }

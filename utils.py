@@ -18,6 +18,7 @@ def validate_inputs(inputs):
     inputs["n_splits"] = int(inputs["n_splits"])
     inputs["print"] = strtobool(inputs["print"])
     inputs["parallel"] = strtobool(inputs["parallel"])
+    inputs["n"] = int(inputs["n"])
     if inputs["n_cpu"] == "None" or inputs["n_cpu"] == None:
         inputs["n_cpu"] = None
     else:
