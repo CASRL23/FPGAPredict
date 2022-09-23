@@ -351,6 +351,8 @@ def permutation_fit(x, y, estimator, subset, n_splits=5, clustering=False,
             original_clusters[c] = cluster_indices
             cluster_x = x2.iloc[cluster_indices]
             cluster_y = y_copy.iloc[cluster_indices]
+            if len(cluster_x.index.tolist()) < 2 or len(cluster_y.index.tolist()) < 2:
+                return 10000, subset, 10000, -1, 10000
             pcc = PCC(k=22)
             pcc.fit(cluster_x, cluster_y)
             avg_pcc += np.mean(np.abs(pcc.best_pcc))
@@ -432,7 +434,7 @@ def permutation_fit(x, y, estimator, subset, n_splits=5, clustering=False,
 
                 for training_cluster in wrong_training_clusters:
                     cluster_bench = wrong_training_clusters[training_cluster][0]
-                   
+
                     min_c = training_cluster
                     found_better = False
                     for original_cluster in not_checked_original_clusters:
