@@ -46,6 +46,7 @@ class ExhaustiveSearch:
         self.benchmarks = None  # array-like, name of data points or benchmarks passed
         self.subset = None  # numpy array, indices of the best features subset of the original features
         self.nruns_error = nruns_error  # if avg error of 1 kfold is below this error, we do 50 runs
+        self.nruns_pcc = -1
 
     # passing x and y as pandas dataframes
     def fit(self, x_, _y, _x2=None):
@@ -158,13 +159,13 @@ class ExhaustiveSearch:
                             process = pool.apply_async(permutation_fit, args=(
                                 new_x, y, self.estimator, subset, self.n_splits, self.clustering,
 
-                                self.scaling, x2, self.nruns_error))
+                                self.scaling, x2, self.nruns_error, self.nruns_pcc))
                         else:
                             # call the function directly if without parallel processing
                             process = permutation_fit(new_x, y, self.estimator, subset, self.n_splits,
                                                       self.clustering,
 
-                                                      self.scaling, x2, self.nruns_error)
+                                                      self.scaling, x2, self.nruns_error, self.nruns_pcc)
 
                     else:  # if on the whole dataset use the function training_fit() instead
                         if self.parallel:
@@ -207,7 +208,8 @@ class ExhaustiveSearch:
                             best_c_subsets = temp.copy()
                         else:
                             best_c_subsets = pd.concat([best_c_subsets, temp], ignore_index=True)
-
+                            if len(best_c_subsets.index.tolist()) >= 10:
+                                self.nruns_pcc = best_c_subsets["Avg. PCC"].min()
                     # store the top 5 prediction subsets IN ORDER
 
                     elif not self.clustering and self.printt:
@@ -324,7 +326,7 @@ def training_fit(x, y, estimator, subset):
 
 
 def permutation_fit(x, y, estimator, subset, n_splits=5, clustering=False,
-                    scaling=False, x2=None, max_error=10):
+                    scaling=False, x2=None, max_error=10, min_pcc = -1):
     shuffle = True
     repeat = 50
     random_state = 0
@@ -340,11 +342,22 @@ def permutation_fit(x, y, estimator, subset, n_splits=5, clustering=False,
         n_clusters = kmeans.get_params()['n_clusters']
         original_clusters = {}  # dictionary of the clusters
         benchmarks = np.array(x.index)
-        for c in range(n_clusters):
-            cluster_indicies = np.array(np.where(y == c))[0]
-            original_clusters[c] = cluster_indicies
 
+        avg_pcc = 0
+
+        # iterate through each cluster and find the PCC of the top 22 ranked features
+        for c in range(n_clusters):
+            cluster_indices = np.array(np.where(y == c))[0]
+            original_clusters[c] = cluster_indices
+            cluster_x = x2.iloc[cluster_indices]
+            cluster_y = y_copy.iloc[cluster_indices]
+            pcc = PCC(k=22)
+            pcc.fit(cluster_x, cluster_y)
+            avg_pcc += np.mean(np.abs(pcc.best_pcc))
+
+        avg_pcc = avg_pcc / n_clusters
         y = pd.DataFrame(y)
+
     # record the error rate of every iteration here
     all_errors = []
 
@@ -411,7 +424,7 @@ def permutation_fit(x, y, estimator, subset, n_splits=5, clustering=False,
                     cluster_indicies = np.array(np.where(training_labels == c))[0]
                     cluster_bench = training_benchmarks[cluster_indicies]
                     cluster_error = np.sum(np.isin(cluster_bench, benchmarks[original_clusters[c]], invert=True))
-                    if cluster_error == 0:
+                    if cluster_error == 0 or cluster_error < cluster_bench.shape[0]/2:
                         continue
                     else:
                         not_checked_original_clusters.append(c)
@@ -419,26 +432,26 @@ def permutation_fit(x, y, estimator, subset, n_splits=5, clustering=False,
 
                 for training_cluster in wrong_training_clusters:
                     cluster_bench = wrong_training_clusters[training_cluster][0]
-                    min_error = wrong_training_clusters[training_cluster][1]
+                   
                     min_c = training_cluster
                     found_better = False
                     for original_cluster in not_checked_original_clusters:
                         cluster_error = np.sum(np.isin(cluster_bench, benchmarks[original_clusters[original_cluster]], invert=True))
-                        if cluster_error == 0:
-                            min_error = cluster_error
+                        if cluster_error == 0 or cluster_error < cluster_bench.shape[0]/2:
+                            wrong_training_clusters[training_cluster][1] = cluster_error
                             min_c = original_cluster
                             found_better = True
                             break
                         else:
-                            if cluster_error < min_error:
-                                min_error = cluster_error
+                            if cluster_error < wrong_training_clusters[training_cluster][1]:
+                                wrong_training_clusters[training_cluster][1] = cluster_error
                                 min_c = original_cluster
-                                found_better = True 
+                                found_better = True
 
                     new_labels[training_cluster] = min_c
                     if found_better:
                         not_checked_original_clusters.remove(min_c)
-                    training_error += min_error
+                    training_error += wrong_training_clusters[training_cluster][1]
 
                 testing_error = 0
 
@@ -465,26 +478,13 @@ def permutation_fit(x, y, estimator, subset, n_splits=5, clustering=False,
                 all_errors += error
 
         # perform 50 runs if the average error is less than 10%
-        if (np.mean(all_errors) > max_error and repeat == 50):
+        if (np.mean(all_errors) > max_error and repeat == 50) and ((not clustering) or (clustering and avg_pcc > min_pcc)):
             repeat = -1
         else:
             repeat -= 1
 
     avg_error = np.mean(all_errors)
-    if clustering and avg_error == 0:
-        avg_pcc = 0
-        # iterate through each cluster and find the PCC of the top 22 ranked features
-        for c in range(n_clusters):
-            cluster_indices = original_clusters[c]
-            cluster_x = x2.iloc[cluster_indices]
-            cluster_y = y_copy.iloc[cluster_indices]
-            pcc = PCC(k=22)
-            pcc.fit(cluster_x, cluster_y)
-            avg_pcc += np.mean(np.abs(pcc.best_pcc))
 
-        avg_pcc = avg_pcc / n_clusters
-    else:
-        avg_pcc = -1
     return avg_error, subset, np.std(all_errors), avg_pcc, np.amax(all_errors)
 
 
