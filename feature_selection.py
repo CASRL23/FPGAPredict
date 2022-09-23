@@ -426,8 +426,11 @@ def permutation_fit(x, y, estimator, subset, n_splits=5, clustering=False,
                     cluster_indicies = np.array(np.where(training_labels == c))[0]
                     cluster_bench = training_benchmarks[cluster_indicies]
                     cluster_error = np.sum(np.isin(cluster_bench, benchmarks[original_clusters[c]], invert=True))
-                    if cluster_error == 0 or cluster_error < cluster_bench.shape[0]/2:
+                    if cluster_error == 0:
                         continue
+                    elif cluster_error < cluster_bench.shape[0]/2:
+                        training_error += cluster_error
+                        continue 
                     else:
                         not_checked_original_clusters.append(c)
                         wrong_training_clusters[c] = [cluster_bench, cluster_error]
@@ -480,7 +483,7 @@ def permutation_fit(x, y, estimator, subset, n_splits=5, clustering=False,
                 all_errors += error
 
         # perform 50 runs if the average error is less than 10%
-        if (np.mean(all_errors) > max_error and repeat == 50) and ((not clustering) or (clustering and avg_pcc > min_pcc)):
+        if (np.mean(all_errors) > max_error and repeat == 50) and ((not clustering) or (clustering and avg_pcc < min_pcc)):
             repeat = -1
         else:
             repeat -= 1
