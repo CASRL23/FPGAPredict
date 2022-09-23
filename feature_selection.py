@@ -330,7 +330,8 @@ def permutation_fit(x, y, estimator, subset, n_splits=5, clustering=False,
     shuffle = True
     repeat = 50
     random_state = 0
-
+    avg_pcc = 0
+    
     if clustering:
         # cluster the whole dataset, and record the average PCC among the clusters
         kmeans = copy(estimator)
@@ -342,8 +343,6 @@ def permutation_fit(x, y, estimator, subset, n_splits=5, clustering=False,
         n_clusters = kmeans.get_params()['n_clusters']
         original_clusters = {}  # dictionary of the clusters
         benchmarks = np.array(x.index)
-
-        avg_pcc = 0
 
         # iterate through each cluster and find the PCC of the top 22 ranked features
         for c in range(n_clusters):
@@ -430,7 +429,7 @@ def permutation_fit(x, y, estimator, subset, n_splits=5, clustering=False,
                         continue
                     elif cluster_error < cluster_bench.shape[0]/2:
                         training_error += cluster_error
-                        continue 
+                        continue
                     else:
                         not_checked_original_clusters.append(c)
                         wrong_training_clusters[c] = [cluster_bench, cluster_error]
