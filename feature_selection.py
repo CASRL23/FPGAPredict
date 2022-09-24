@@ -47,7 +47,7 @@ class ExhaustiveSearch:
         self.subset = None  # numpy array, indices of the best features subset of the original features
         self.nruns_error = nruns_error  # if avg error of 1 kfold is below this error, we do 50 runs
         self.nruns_pcc = -1
-        
+
     # passing x and y as pandas dataframes
     def fit(self, x_, _y, _x2=None):
 
@@ -208,10 +208,10 @@ class ExhaustiveSearch:
                             best_c_subsets = temp.copy()
                         else:
                             best_c_subsets = pd.concat([best_c_subsets, temp], ignore_index=True)
-                        
+
                         if len(best_c_subsets.index.tolist()) > 10:
                             self.nruns_pcc = best_c_subsets["Avg. PCC"].min()
-                            
+
                     # store the top 5 prediction subsets IN ORDER
 
                     elif not self.clustering and self.printt:
@@ -469,11 +469,11 @@ def permutation_fit(x, y, estimator, subset, n_splits=5, clustering=False,
 
                 all_errors += error
         avg_error = np.mean(all_errors)
-        
+
         # perform 50 runs if the average error is less than 10%
-        if (not clustering and avg_error > max_error and repeat == 50):
-            repeat = -1
-        elif clustering and avg_error > max_error and repeat == 50:
+        if (not clustering and avg_error <= max_error and repeat == 50):
+            repeat -= 1
+        elif clustering and avg_error <= max_error and repeat == 50:
             # calculate the average pcc
             avg_pcc = 0
             # iterate through each cluster and find the PCC of the top 22 ranked features
@@ -483,18 +483,21 @@ def permutation_fit(x, y, estimator, subset, n_splits=5, clustering=False,
                 cluster_y = y_copy.iloc[cluster_indices]
                 pcc = PCC(k=22)
                 pcc.fit(cluster_x, cluster_y)
-                avg_pcc += np.mean(np.abs(pcc.best_pcc))
+                if np.isnan(pcc.best_pcc).any():
+                    avg_pcc += -1
+                else:
+                    avg_pcc += np.mean(np.abs(pcc.best_pcc))
 
             avg_pcc = avg_pcc / n_clusters
             if avg_pcc > min_pcc:
-                repeat -=1
+                repeat -= 1
             else:
                 repeat = -1
         else:
-            repeat -= 1
+            repeat = -1
 
     avg_error = np.mean(all_errors)
-    
+
     return avg_error, subset, np.std(all_errors), avg_pcc, np.amax(all_errors)
 
 
@@ -518,22 +521,22 @@ class PCC:
         # convert x and y to numpy arrays
         y = np.array(_y)
         x = np.array(_x)
-        
-        all_pcc = np.corrcoef(x,y)[-1][:-1]
-        
+        shape = x.shape[1]
+        all_pcc = np.corrcoef(x,y, rowvar=False)[-1][:-1]
+
         if self.k is not None:
-            mask = all_pcc.argsort()[:self.k]
+            mask = all_pcc.argsort()[-self.k:]
         else:
             mask = np.where(all_pcc > self.threshold)
-            
+
         best_pcc = all_pcc[mask]
         self.mask = mask
         self.best_pcc = best_pcc
+        self.shape = shape
         return mask
 
     def transform(self, _x):
         if isinstance(_x, pd.DataFrame):
-            features = _x.columns
             selected_features = np.array(_x.columns)[self.mask]
             new_x = _x[selected_features]
         else:
@@ -547,7 +550,7 @@ class PCC:
 
     # returns a boolean array mask of the selected features
     def get_support(self):
-        support = [False for i in range(len(self.features))]
+        support = [False for i in range(self.shape)]
         for col in self.mask:
             support[col] = True
         return support
