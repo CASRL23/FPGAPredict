@@ -175,8 +175,10 @@ if __name__ == "__main__":
         real_df = pd.read_excel(real_file, sheet_name="seeded_" + str(fpga_pred.n_runs) + "runs_clustering", engine="openpyxl", index_col=0, header=0, nrows=n_benchmarks)
         real_df = real_df.dropna(axis=1)
         real_df.index.name = None
-        real_df = real_df.astype("int64")
-        test_df = test_df.astype("int64")
+        real_df = real_df.astype("float")
+        test_df = test_df.astype("float")
+        real_df = real_df.round(decimals=2)
+        test_df = test_df.round(decimals=2)
 
         if test_df.equals(real_df):
             print("\n--------------------\nRegression Test PASSED!\n")
