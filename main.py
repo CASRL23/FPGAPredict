@@ -36,16 +36,19 @@ if __name__ == "__main__":
 
     # make the required conversions on inputs and validate them.
     inputs = validate_inputs(inputs)
-    print("Running with the following configuration: \n%s\n" % inputs)
+    print("\n*** main.py: Running with the following configuration: \n%s\n" % inputs)
 
     inputs["shuffle"] = True
+
     # initialize FPGAPredict with the configuration
     fpga_pred = FPGAPredict(inputs)
 
     # start running FPGAPredict
+    print("\n*** main.py: Running FPGAPredict for each cluster separately to select the features..\n")
     ret = fpga_pred.run(target=[inputs["target_metric"]], features=inputs["features"],
                         clustering_features=inputs["clustering_features"])
     n_benchmarks = len(fpga_pred.benchmarks)
+
     # save the first and second top clustering features
     if len(fpga_pred.top_clustering_features) > 0:
         first_clustering_features = fpga_pred.top_clustering_features[0]
@@ -56,7 +59,7 @@ if __name__ == "__main__":
     else:
         second_clustering_features = None
 
-        # get the average error
+    # get the average error
     avg_error = fpga_pred.get_avg_error()
 
     excelname1, excelname2, features = fpga_pred.store_output(ret)
@@ -66,19 +69,21 @@ if __name__ == "__main__":
     fpga_pred.clustering_perm = False
 
     # turn on true shuffle, random state will be set to None automatically
-    fpga_pred.shuffle = True
+    fpga_pred.true_shuffle = True
 
+    print("\n *** main.py: Running FPGAPredict with each cluster separately with true shuffle..\n")
     ret = fpga_pred.run(target=[inputs["target_metric"]], features=inputs["features"],
                         clustering_features=fpga_pred.clustering_features)
     fpga_pred.store_output(ret, excelname1=excelname1, excelname2=excelname2,
                            sheet_name="true_" + str(fpga_pred.n_runs) + "_runs", mode='a')
 
     if inputs["n_clusters"] > 1:
+
         fpga_pred.estimator = ESTIMATORS[0]
-        fpga_pred.shuffle = False
+        fpga_pred.true_shuffle = False
         fpga_pred.estimator.set_parameters(
             estimators=list(zip([ESTIMATORS[inputs["estimator"]] for i in range(fpga_pred.n_clusters)], features)))
-
+        print("\n *** main.py: Running FPGAPredict with clustering regression and with seeded shuffle...\n")
         ret = fpga_pred.run(target=[inputs["target_metric"]], features=inputs["features"],
                             clustering_features=fpga_pred.clustering_features)
         avg_error = fpga_pred.get_avg_error()
@@ -87,7 +92,8 @@ if __name__ == "__main__":
                                sheet_name="seeded_" + str(fpga_pred.n_runs) + "runs_clustering", mode='a')
         test_df1 = fpga_pred.results
         # turn on true shuffle
-        fpga_pred.shuffle = True
+        fpga_pred.true_shuffle = True
+        print("*** main.py: Running FPGAPredict with clustering regression and with true shuffle...\n")
         ret = fpga_pred.run(target=[inputs["target_metric"]], features=inputs["features"],
                             clustering_features=fpga_pred.clustering_features)
 
@@ -102,11 +108,16 @@ if __name__ == "__main__":
     avg_error2 = np.Inf
 
     if second_clustering_features is not None:
+        print("\n------------------------------------------------------------\n")
+        print("\n*** main.py: Running FPGAPredict with the second top clustering features: %s ...\n\n" %second_clustering_features)
+
         fpga_pred.clustering_features = second_clustering_features
         fpga_pred.perm = inputs["perm"]
-        fpga_pred.shuffle = False
+        fpga_pred.true_shuffle = False
         fpga_pred.estimator = ESTIMATORS[inputs["estimator"]]
         fpga_pred.clusters_features = None
+
+        print("\n*** main.py: Running FPGAPredict for each cluster separately to select the features..\n")
         # run with the second top clustering features
         ret = fpga_pred.run(target=[inputs["target_metric"]], features=inputs["features"],
                             clustering_features=fpga_pred.clustering_features)
@@ -117,8 +128,9 @@ if __name__ == "__main__":
         fpga_pred.clustering_perm = False
 
         # turn on true shuffle, random state will be set to None automatically
-        fpga_pred.shuffle = True
+        fpga_pred.true_shuffle = True
 
+        print("\n *** main.py: Running FPGAPredict with each cluster separately with true shuffle..\n")
         ret = fpga_pred.run(target=[inputs["target_metric"]], features=inputs["features"],
                             clustering_features=fpga_pred.clustering_features)
         fpga_pred.store_output(ret, excelname1=excelname1, excelname2=excelname2,
@@ -126,10 +138,11 @@ if __name__ == "__main__":
 
         if inputs["n_clusters"] > 1:
             fpga_pred.estimator = ESTIMATORS[0]
-            fpga_pred.shuffle = False
+            fpga_pred.true_shuffle = False
             fpga_pred.estimator.set_parameters(
                 estimators=list(zip([ESTIMATORS[inputs["estimator"]] for i in range(fpga_pred.n_clusters)], features)))
 
+            print("\n *** main.py: Running FPGAPredict with clustering regression and with seeded shuffle..\n")
             ret = fpga_pred.run(target=[inputs["target_metric"]], features=inputs["features"],
                                 clustering_features=fpga_pred.clustering_features)
             avg_error2 = fpga_pred.get_avg_error()
@@ -138,7 +151,8 @@ if __name__ == "__main__":
 
             test_df2 = fpga_pred.results
             # turn on true shuffle
-            fpga_pred.shuffle = True
+            fpga_pred.true_shuffle = True
+            print("\n *** main.py: Running FPGAPredict with clustering regression and with true shuffle..\n")
             ret = fpga_pred.run(target=[inputs["target_metric"]], features=inputs["features"],
                                 clustering_features=fpga_pred.clustering_features)
             fpga_pred.store_output(ret, excelname1=excelname1, excelname2=excelname2,
@@ -155,14 +169,19 @@ if __name__ == "__main__":
         print("\nThe best clustering features are %s with an average error of %.2f %%" % (
             first_clustering_features, avg_error))
         print("The output file was saved as %s" % first_excelname1)
-        test_df = test_df1
-    # check if we are doing regression test
+        test_df = test_df1# check if we are doing regression test
     if inputs["regression_test"] != "None":
         real_file = inputs["regression_test"]
-        real_df = pd.read_excel(real_file, sheet_name="seeded_" + str(fpga_pred.n_runs) + "runs_clustering")
-        real_df = real.iloc[0:n_benchmarks + 2]
+        real_df = pd.read_excel(real_file, sheet_name="seeded_" + str(fpga_pred.n_runs) + "runs_clustering", engine="openpyxl", index_col=0, header=0, nrows=n_benchmarks)
+        real_df = real_df.dropna(axis=1)
+        real_df.index.name = None
+        real_df = real_df.astype("int64")
+        test_df = test_df.astype("int64")
 
         if test_df.equals(real_df):
             print("\n--------------------\nRegression Test PASSED!\n")
         else:
             print("\n--------------------\nRegression Test FAILED!\n")
+            print("\nThe correct output dataframe is: \n\n%s\n\nBut the current outptu dataframe is: \n\n%s\n" %(real_df.to_string(), test_df.to_string()))
+            diff = pd.concat([real_df, test_df]).drop_duplicates(keep=False)
+            print("\nThe difference between the two dataframes are in the following:\n\n%s\n\n" %(diff.to_string()))
