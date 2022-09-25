@@ -108,7 +108,7 @@ class FPGAPredict:
             perm = ExhaustiveSearch(estimator=KMeans(n_clusters=self.n_clusters, random_state=42),
                                     n_splits=self.n_splits, n=self.clustering_n, clustering=True,
                                     max=self.clustering_perm_up_to, min=self.clustering_perm_min,
-                                    parallel=self.parallel, n_cpu=self.n_cpu)
+                                    parallel=self.parallel, n_cpu=self.n_cpu, printt=self.printt)
 
             time1 = perf_counter()
 
@@ -252,8 +252,9 @@ class FPGAPredict:
         print("FPGAPredict: The results will be computed on the whole dataset")
         if self.perm:
             perm = ExhaustiveSearch(estimator=self.estimator, shuffle=self.shuffle, n_splits=self.n_splits,
-                                    n=self.n, random_state=self.random_state, parallel=self.parallel, n_cpu=self.n_cpu)
+                                    n=self.n, random_state=self.random_state, parallel=self.parallel, n_cpu=self.n_cpu, printt=self.printt)
             x = perm.fit_transform(x, y)
+            
             print("Selecting Features is complete.\n")
             print("Selected features are: " % x.columns)
 
