@@ -471,7 +471,7 @@ def permutation_fit(x, y, estimator, subset, n_splits=5, clustering=False,
         avg_error = np.mean(all_errors)
 
         # perform 50 runs if the average error is less than 10%
-        if (not clustering and avg_error <= max_error and repeat == 50):
+        if (not clustering and avg_error <= max_error and repeat == 50) or repeat < 50:
             repeat -= 1
         elif clustering and avg_error <= max_error and repeat == 50:
             # calculate the average pcc
@@ -483,10 +483,7 @@ def permutation_fit(x, y, estimator, subset, n_splits=5, clustering=False,
                 cluster_y = y_copy.iloc[cluster_indices]
                 pcc = PCC(k=22)
                 pcc.fit(cluster_x, cluster_y)
-                if np.isnan(pcc.best_pcc).any():
-                    avg_pcc += -1
-                else:
-                    avg_pcc += np.mean(np.abs(pcc.best_pcc))
+                avg_pcc += np.mean(np.abs(pcc.best_pcc))
 
             avg_pcc = avg_pcc / n_clusters
             if avg_pcc > min_pcc:
@@ -522,8 +519,10 @@ class PCC:
         y = np.array(_y)
         x = np.array(_x)
         shape = x.shape[1]
-        all_pcc = np.corrcoef(x,y, rowvar=False)[-1][:-1]
-
+        all_pcc = np.abs(np.corrcoef(x,y, rowvar=False)[-1][:-1])
+        if np.isnan(all_pcc).any():
+            all_pcc = np.nan_to_num(all_pcc, nan=0)
+            
         if self.k is not None:
             mask = all_pcc.argsort()[-self.k:]
         else:
