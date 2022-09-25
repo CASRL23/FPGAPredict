@@ -181,6 +181,9 @@ class ClusteringRegression:
         # predict the clusters of the benchmarks
         labels = self.kmeans.predict(x2)
 
+        labels = [self.new_labels[labels[i]] for i in range(labels.shape[0])]
+        labels = np.array(labels)
+
         # predict the target metric for each benchmark and save it in pred_arr
         pred_arr = []
 
@@ -197,13 +200,11 @@ class ClusteringRegression:
         self.estimators_pred = []
 
         # iterate through each cluster
-        for i in range(self.n_clusters):
+        for cluster in range(self.n_clusters):
 
-            cluster_indices = np.array(np.where(labels == i))[0]
+            cluster_indices = np.array(np.where(labels == cluster))[0]
             if len(cluster_indices) == 0:
                 continue
-            cluster = self.new_labels[i]
-            
             cluster_x = x.iloc[cluster_indices]
             features = self.estimators[cluster][1]
             cluster_x = cluster_x[features]
