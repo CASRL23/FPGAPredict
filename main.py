@@ -63,6 +63,8 @@ if __name__ == "__main__":
     avg_error = fpga_pred.get_avg_error()
 
     excelname1, excelname2, features = fpga_pred.store_output(ret)
+    test_df1 = fpga_pred.results
+    test_df2 = fpga_pred.results
 
     fpga_pred.clusters_features = features
     fpga_pred.perm = False
@@ -109,7 +111,8 @@ if __name__ == "__main__":
 
     if second_clustering_features is not None:
         print("\n------------------------------------------------------------\n")
-        print("\n*** main.py: Running FPGAPredict with the second top clustering features: %s ...\n\n" %second_clustering_features)
+        print(
+            "\n*** main.py: Running FPGAPredict with the second top clustering features: %s ...\n\n" % second_clustering_features)
 
         fpga_pred.clustering_features = second_clustering_features
         fpga_pred.perm = inputs["perm"]
@@ -169,10 +172,21 @@ if __name__ == "__main__":
         print("\nThe best clustering features are %s with an average error of %.2f %%" % (
             first_clustering_features, avg_error))
         print("The output file was saved as %s" % first_excelname1)
-        test_df = test_df1# check if we are doing regression test
+        test_df = test_df1  # check if we are doing regression test
+    else:
+        test_df = test_df1
     if inputs["regression_test"] != "None":
         real_file = inputs["regression_test"]
-        real_df = pd.read_excel(real_file, sheet_name="seeded_" + str(fpga_pred.n_runs) + "runs_clustering", engine="openpyxl", index_col=0, header=0, nrows=n_benchmarks)
+        try:
+            real_df = pd.read_excel(real_file, sheet_name="seeded_" + str(fpga_pred.n_runs) + "runs_clustering",
+                                    engine="openpyxl", index_col=0, header=0, nrows=n_benchmarks)
+        except (KeyError, ValueError):
+            try:
+                real_df = pd.read_excel(real_file, sheet_name="Summary of " + str(fpga_pred.n_runs) + " runs",
+                                        engine="openpyxl", index_col=0, header=0, nrows=n_benchmarks)
+            except (KeyError, ValueError):
+                print("**main.py: Error: regression test file is not valid.\n")
+                exit(1)
         real_df = real_df.dropna(axis=1)
         real_df.index.name = None
         real_df = real_df.astype("float")
@@ -184,6 +198,7 @@ if __name__ == "__main__":
             print("\n--------------------\nRegression Test PASSED!\n")
         else:
             print("\n--------------------\nRegression Test FAILED!\n")
-            print("\nThe correct output dataframe is: \n\n%s\n\nBut the current outptu dataframe is: \n\n%s\n" %(real_df.to_string(), test_df.to_string()))
+            print("\nThe correct output dataframe is: \n\n%s\n\nBut the current outptu dataframe is: \n\n%s\n" % (
+            real_df.to_string(), test_df.to_string()))
             diff = pd.concat([real_df, test_df]).drop_duplicates(keep=False)
-            print("\nThe difference between the two dataframes are in the following:\n\n%s\n\n" %(diff.to_string()))
+            print("\nThe difference between the two dataframes are in the following:\n\n%s\n\n" % (diff.to_string()))
