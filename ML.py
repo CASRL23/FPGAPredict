@@ -5,7 +5,40 @@ from datetime import date
 from time import perf_counter
 from utils import name_file
 
+#
 class FPGAPredict:
+    '''
+    FPGAPredict: a class that is able to read data from an excelfile,
+                select features using PCC and exhaustive search,
+                cluster the dataset,
+                perform KFold with model validation,
+                run n times
+
+    initialization variables:
+
+    excelname: the name of the excel file that contains the data, must end with xls or xlsx.
+    estimator: an integer from the following dictionary:
+ 		    {1: 'LinearRegression', 2: 'ExponentialRegression', 3: 'RandomForestRegressor', 4: 'MLPRegressor', 5: 'DecisionTreeRegressor', 6: 'KNeighborsRegressor'}
+    n: the number of top PCC ranked prediction features to pass to Exhaustive Search, only used when perm=True
+	perm: boolean indicates whether to select prediction features by Exhaustive Search or not
+	clustering_n: the number of top PCC ranked CLUSTERING features to pass to Exhaustive Search, only used when clustering_perm=True
+	clustering_perm: boolean indicates whether to select CLUSTERING features by Exhaustive Search or not
+	shuffle: whether to true shuffle the data points with KFold. If False, seeded shuffle is performed instead.
+	n_splits: Number of KFold n_splits. If n_splits <= 1 then KFold isn't performed and the results will show the training error only.
+	n_clusters: the number of clusters to create. If 1 then clustering is not performed
+	random_state: an integer indicating the random state to start with. Only used if shuffle=False.
+	printbool: whether to print the processing log and the results.
+	scaling: an integer, whether to scale the dataset. If 1: use standard scaling, If 2: use MinMax, else don't scale.
+	clustering_estimators: an array-like of integers for the estimator of each cluster. Only used when estimator=0 (i.e. clustering regression)
+	n_runs: an integer, the number of random runs to perform to record their results. Every run is performed with a different seed to make sure each run leads to a different random split.
+	clustering_perm_up_to: an integer or None, the maximum number of clustering features to try in Exhaustive Search. Only used if clustering_perm=True.
+	perm_up_to: an integer or None, the maximum number of prediction features to try in Exhaustive Search. Only used if perm=True.
+	clustering_perm_min: an integer, the minimum number of clustering features to try in Exhaustive Search. Only used if clustering_perm=True.
+	perm_min: an integer, the minimum number of prediction features to try in Exhaustive Search. Only used if perm=True.
+	parallel: boolean, whether to perform parallel processing with Exhaustive Search or not. Only used if either perm=True or clustering_perm=True.
+	n_cpu: an integer or None, the number of parallel CPU runs to perform. If None, the code calculates the number of available cores and subtracts 3. Only used if parallel=True and either perm or clustering_perm are True.
+	clusters_features: A 2D array that contains the features for each cluster in the following format: [features for c1, features for c2..., features for c<n_clusters>]
+    '''
 
     def __init__(self, params):
         global ESTIMATORS
@@ -35,7 +68,7 @@ class FPGAPredict:
         self.benchmarks = None  # name of the benchmarks
         self.n_clusters = params["n_clusters"]  # number of clusters to create
         self.n_splits = params["n_splits"]  # number of splits with KFold
-        self.clustering_features = None  # features used to cluster the dataset
+        self.clustering_features_names = None  # features used to cluster the dataset
         self.clustering_estimators = params["clustering_estimators"]  # estimators used for each cluster
         self.clusters_features = params["clusters_features"]  # features used for each cluster
         self.top_clustering_features = []
@@ -55,8 +88,8 @@ class FPGAPredict:
             features = list(features)
             features.insert(0, "Benchmarks")
         if target is not None:
-            target = list(target)
-            target.insert(0, "Benchmarks")
+            self.target_feature = list(target)
+            self.target_feature.insert(0, "Benchmarks")
         if clustering is not None:
             clustering = list(clustering)
             clustering.insert(0, "Benchmarks")
