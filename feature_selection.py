@@ -208,8 +208,10 @@ class ExhaustiveSearch:
                             best_c_subsets = temp.copy()
                         else:
                             best_c_subsets = pd.concat([best_c_subsets, temp], ignore_index=True)
-                            if len(best_c_subsets.index.tolist()) >= 10:
-                                self.nruns_pcc = best_c_subsets["Avg. PCC"].min()
+
+                        if len(best_c_subsets.index.tolist()) > 10:
+                            self.nruns_pcc = best_c_subsets["Avg. PCC"].min()
+
                     # store the top 5 prediction subsets IN ORDER
 
                     elif not self.clustering and self.printt:
@@ -249,7 +251,7 @@ class ExhaustiveSearch:
 
                 if np.array_equal(min_subset, prev_subset):
                     same_subset += 1
-                if same_subset >= 3 and same_subset < 5:
+                if same_subset >= 3 and same_subset < 5 and choose < self.n-1:
                     if choose_list is None:
                         choose_list = [h for h in range(choose + 1, self.n + 1)]
                     choose = random.choice(choose_list)
@@ -272,10 +274,11 @@ class ExhaustiveSearch:
             # sort the best clustering features based on PCC
             best_c_subsets = best_c_subsets.sort_values("Avg. PCC", ascending=False)
 
-            # store them to excel
-            excel = pd.ExcelWriter(_name_2, engine="openpyxl")
-            best_c_subsets.to_excel(excel)
-            excel.save()
+            if self.printt:
+                # store them to excel
+                excel = pd.ExcelWriter(_name_2, engine="openpyxl")
+                best_c_subsets.to_excel(excel)
+                excel.save()
 
             # remove duplicate clusters
             best_c_subsets = best_c_subsets.drop_duplicates(subset=["Avg. PCC"])
@@ -330,8 +333,7 @@ def permutation_fit(x, y, estimator, subset, n_splits=5, clustering=False,
     shuffle = True
     repeat = 50
     random_state = 0
-    avg_pcc = 0
-    
+    avg_pcc = -1
     if clustering:
         # cluster the whole dataset, and record the average PCC among the clusters
         kmeans = copy(estimator)
@@ -343,22 +345,11 @@ def permutation_fit(x, y, estimator, subset, n_splits=5, clustering=False,
         n_clusters = kmeans.get_params()['n_clusters']
         original_clusters = {}  # dictionary of the clusters
         benchmarks = np.array(x.index)
-
-        # iterate through each cluster and find the PCC of the top 22 ranked features
         for c in range(n_clusters):
-            cluster_indices = np.array(np.where(y == c))[0]
-            original_clusters[c] = cluster_indices
-            cluster_x = x2.iloc[cluster_indices]
-            cluster_y = y_copy.iloc[cluster_indices]
-            if len(cluster_x.index.tolist()) < 2 or len(cluster_y.index.tolist()) < 2:
-                return 10000, subset, 10000, -1, 10000
-            pcc = PCC(k=22)
-            pcc.fit(cluster_x, cluster_y)
-            avg_pcc += np.mean(np.abs(pcc.best_pcc))
+            cluster_indicies = np.array(np.where(y == c))[0]
+            original_clusters[c] = cluster_indicies
 
-        avg_pcc = avg_pcc / n_clusters
         y = pd.DataFrame(y)
-
     # record the error rate of every iteration here
     all_errors = []
 
@@ -431,34 +422,34 @@ def permutation_fit(x, y, estimator, subset, n_splits=5, clustering=False,
                     if cluster_error == 0:
                         continue
                     elif cluster_error < cluster_bench.shape[0]/2:
-                        training_error += cluster_error
-                        continue
+                        training_error += cluster_error 
+                        continue 
                     else:
                         not_checked_original_clusters.append(c)
                         wrong_training_clusters[c] = [cluster_bench, cluster_error]
 
                 for training_cluster in wrong_training_clusters:
                     cluster_bench = wrong_training_clusters[training_cluster][0]
-
+                    min_error = wrong_training_clusters[training_cluster][1]
                     min_c = training_cluster
                     found_better = False
                     for original_cluster in not_checked_original_clusters:
                         cluster_error = np.sum(np.isin(cluster_bench, benchmarks[original_clusters[original_cluster]], invert=True))
-                        if cluster_error < cluster_bench.shape[0]/2:
-                            wrong_training_clusters[training_cluster][1] = cluster_error
+                        if cluster_error == 0  or cluster_error < cluster_bench.shape[0]/2:
+                            min_error = cluster_error
                             min_c = original_cluster
                             found_better = True
                             break
                         else:
-                            if cluster_error < wrong_training_clusters[training_cluster][1]:
-                                wrong_training_clusters[training_cluster][1] = cluster_error
+                            if cluster_error < min_error:
+                                min_error = cluster_error
                                 min_c = original_cluster
                                 found_better = True
 
                     new_labels[training_cluster] = min_c
                     if found_better:
                         not_checked_original_clusters.remove(min_c)
-                    training_error += wrong_training_clusters[training_cluster][1]
+                    training_error += min_error
 
 
                 for a in range(len(list(pred_y))):
@@ -482,12 +473,30 @@ def permutation_fit(x, y, estimator, subset, n_splits=5, clustering=False,
                 error = list(error)
 
                 all_errors += error
+        avg_error = np.mean(all_errors)
 
         # perform 50 runs if the average error is less than 10%
-        if (np.mean(all_errors) > max_error and repeat == 50) and ((not clustering) or (clustering and avg_pcc < min_pcc)):
-            repeat = -1
-        else:
+        if (not clustering and avg_error <= max_error and repeat == 50) or repeat < 50:
             repeat -= 1
+        elif clustering and avg_error <= max_error and repeat == 50:
+            # calculate the average pcc
+            avg_pcc = 0
+            # iterate through each cluster and find the PCC of the top 22 ranked features
+            for c in range(n_clusters):
+                cluster_indices = original_clusters[c]
+                cluster_x = x2.iloc[cluster_indices]
+                cluster_y = y_copy.iloc[cluster_indices]
+                pcc = PCC(k=22)
+                pcc.fit(cluster_x, cluster_y)
+                avg_pcc += np.mean(np.abs(pcc.best_pcc))
+
+            avg_pcc = avg_pcc / n_clusters
+            if avg_pcc > min_pcc:
+                repeat -= 1
+            else:
+                repeat = -1
+        else:
+            repeat = -1
 
     avg_error = np.mean(all_errors)
 
@@ -511,51 +520,32 @@ class PCC:
     # pass x and y as pandas dataframes
     def fit(self, _x, _y):
 
-        # convert y to a flatten numpy array
-        y = _y.to_numpy().flatten().tolist()
-
-        # initialize variables
-        mask = []
-        all_pcc = []
-        best_pcc = []
-        self.features = _x.columns
-
-        # find PCC with every feature
-        for c in range(len(list(_x.columns))):
-            column = _x.columns.tolist()[c]
-            x = _x[column].to_numpy().flatten().tolist()
-            try:
-                pcc = np.abs(pearsonr(x, y)[0])
-            except scipy.stats.stats.PearsonRConstantInputWarning:
-                pcc = -100
-            if np.isnan(pcc) or np.isinf(pcc):
-                pcc = -100
-
-            if self.k is None and pcc >= self.threshold:
-                mask.append(c)
-                best_pcc.append(pcc)
-            elif self.k is not None:
-                all_pcc.append(pcc)
+        # convert x and y to numpy arrays
+        y = np.array(_y)
+        x = np.array(_x)
+        shape = x.shape[1]
+        all_pcc = np.abs(np.corrcoef(x,y, rowvar=False)[-1][:-1])
+        if np.isnan(all_pcc).any():
+            all_pcc = np.nan_to_num(all_pcc, nan=0)
 
         if self.k is not None:
-            all_pcc = np.array(all_pcc)
-            mask = np.argsort(all_pcc)[-self.k:]
-            best_pcc = sorted(all_pcc)[-self.k:]
-        self.mask = mask #TODO part of testcase
-        self.best_pcc = best_pcc #TODO part of testcase
+            mask = all_pcc.argsort()[-self.k:]
+        else:
+            mask = np.where(all_pcc > self.threshold)
+
+        best_pcc = all_pcc[mask]
+        self.mask = mask
+        self.best_pcc = best_pcc
+        self.shape = shape
         return mask
 
     def transform(self, _x):
         if isinstance(_x, pd.DataFrame):
-            features = _x.columns
-            rows = _x.index
+            selected_features = np.array(_x.columns)[self.mask]
+            new_x = _x[selected_features]
         else:
-            features = None
-        x = np.array(_x)
-        new_x = x[:, self.mask]
-        if features is not None:
-            new_features = features[self.mask]
-            new_x = pd.DataFrame(new_x, columns=new_features, index=rows)
+            x = np.array(_x)
+            new_x = x[:, self.mask]
         return new_x
 
     def fit_transform(self, x, y):
@@ -564,7 +554,7 @@ class PCC:
 
     # returns a boolean array mask of the selected features
     def get_support(self):
-        support = [False for i in range(len(self.features))]
+        support = [False for i in range(self.shape)]
         for col in self.mask:
             support[col] = True
         return support

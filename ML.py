@@ -18,10 +18,10 @@ class FPGAPredict:
     excelname: the name of the excel file that contains the data, must end with xls or xlsx.
     estimator: an integer from the following dictionary:
  		    {1: 'LinearRegression', 2: 'ExponentialRegression', 3: 'RandomForestRegressor', 4: 'MLPRegressor', 5: 'DecisionTreeRegressor', 6: 'KNeighborsRegressor'}
-    n: the number of top PCC ranked prediction features to pass to permutation, only used when perm=True
-	perm: boolean indicates whether to select prediction features by permutation or not
-	clustering_n: the number of top PCC ranked CLUSTERING features to pass to permutation, only used when clustering_perm=True
-	clustering_perm: boolean indicates whether to select CLUSTERING features by permutation or not
+    n: the number of top PCC ranked prediction features to pass to Exhaustive Search, only used when perm=True
+	perm: boolean indicates whether to select prediction features by Exhaustive Search or not
+	clustering_n: the number of top PCC ranked CLUSTERING features to pass to Exhaustive Search, only used when clustering_perm=True
+	clustering_perm: boolean indicates whether to select CLUSTERING features by Exhaustive Search or not
 	shuffle: whether to true shuffle the data points with KFold. If False, seeded shuffle is performed instead.
 	n_splits: Number of KFold n_splits. If n_splits <= 1 then KFold isn't performed and the results will show the training error only.
 	n_clusters: the number of clusters to create. If 1 then clustering is not performed
@@ -34,7 +34,7 @@ class FPGAPredict:
 	perm_up_to: an integer or None, the maximum number of prediction features to try in Exhaustive Search. Only used if perm=True.
 	clustering_perm_min: an integer, the minimum number of clustering features to try in Exhaustive Search. Only used if clustering_perm=True.
 	perm_min: an integer, the minimum number of prediction features to try in Exhaustive Search. Only used if perm=True.
-	parallel: boolean, whether to perform parallel processing with permutation or not. Only used if either perm=True or clustering_perm=True.
+	parallel: boolean, whether to perform parallel processing with Exhaustive Search or not. Only used if either perm=True or clustering_perm=True.
 	n_cpu: an integer or None, the number of parallel CPU runs to perform. If None, the code calculates the number of available cores and subtracts 3. Only used if parallel=True and either perm or clustering_perm are True.
 	clusters_features: A 2D array that contains the features for each cluster in the following format: [features for c1, features for c2..., features for c<n_clusters>]
     '''
@@ -56,7 +56,7 @@ class FPGAPredict:
         else:
             self.estimator = estimator
 
-        self.printbool = params["print"]  # whether to print the results or not
+        self.print_bool = params["print"]  # whether to print the results or not
         self.excelname = params["excelname"]  # the name of the excel file that has the data
         self.random_state = params["random_state"]  # random state with KFold
         self.perm = params["perm"]  # boolean, whether to do prediction exhaustive search or not
@@ -64,7 +64,7 @@ class FPGAPredict:
         self.clustering_n = params[
             "clustering_n"]  # No. clustering features to pass to exhaustive search. only used if clustering_perm is True
         self.clustering_perm = params["clustering_perm"]  # boolean, whether to do clustering exhaustive search or not
-        self.shuffle = params["shuffle"]  # whether to perform true shuffle or not. If not, seeded shuffle is performed
+        self.true_shuffle = params["shuffle"]  # whether to perform true shuffle or not. If not, seeded shuffle is performed
         self.board = params["excelname"].split("_")[0]  # the board name extracted from the excel file
         self.benchmarks = None  # name of the benchmarks
         self.n_clusters = params["n_clusters"]  # number of clusters to create
@@ -83,7 +83,7 @@ class FPGAPredict:
 
     # start FPGAPredict based on the configurations
     def run(self, features=None, target=None, clustering_features=None, output_results=True):
-        if self.printbool:
+        if self.print_bool:
             print("******** FPGAPredict Started Running ******** \n")
 
         # assign the clustering features for clustering regression
@@ -96,36 +96,41 @@ class FPGAPredict:
         # initialize results dictionary
         self.args = {"features": [], "results": [], "split": [], "errors": [], "avg_training_error": []}
 
-        # find clustering features using permutation.
+        # find clustering features using Exhaustive Search.
         if self.clustering_perm and self.n_clusters > 1:
-            print("selecting clustering features by passing the top %d features to permutation.." % self.clustering_n)
+            print("FPGAPredict: selecting clustering features by passing the top %d features to exhaustive search.." % self.clustering_n)
 
             # initialize Exhaustive Search using KMeans
             perm = ExhaustiveSearch(estimator=KMeans(n_clusters=self.n_clusters, random_state=42),
                                     n_splits=self.n_splits, n=self.clustering_n, clustering=True,
                                     max=self.clustering_perm_up_to, min=self.clustering_perm_min,
-                                    parallel=self.parallel, n_cpu=self.n_cpu)
+                                    parallel=self.parallel, n_cpu=self.n_cpu, printt=self.print_bool)
 
             time1 = perf_counter()
 
-            if self.printbool:
-                print("Starting exhaustive search. Current time is %.4f seconds" % time1)
+            if self.print_bool:
+                print("FPGAPredict: Starting exhaustive search. Current time is %.4f seconds" % time1)
 
             # select clustering features by calling fit_transform()
             self.clustering_features = perm.fit_transform(list(clustering_features), target_df, features_df).columns.tolist()  # transforms clustering features to the top choice
 
             time2 = perf_counter()
-            if self.printbool:
-                print("Finished exhaustive search. Current time is %.2f seconds" % time2)
+            self.clustering_features = scaled_clustering_features.columns.tolist()
+            if self.print_bool:
+                print("FPGAPredict: Finished exhaustive search. Current time is %.2f seconds" % time2)
             elapsed = time2 - time1
             self.top_clustering_features = np.array(perm.best_c_subsets["Clustering Features"])
 
-            print("ELAPSED TIME FOR SELECTING FEATURES IS: %.4f seconds.\nStart Time = %.4f seconds and End Time = %.4f seconds\n" % (elapsed, time1, time2))
-            print("clustering features were selected successfully")
-            print("clustering features selected are: \n%s" % self.clustering_features())
+            if self.print_bool:
+                print(
+                    "FPGAPredict: ELAPSED TIME FOR SELECTING THE FEATURES IS: %.4f seconds.\nStart Time = %.4f seconds and End Time = %.4f seconds\n" % (
+                      elapsed, time1, time2))
+                print("FPGAPredict: The clustering features were selected successfully")
+                print("FPGAPredict: The selected clustering features are: \n%s" % scaled_clustering_features.columns.tolist())
 
         if self.n_clusters > 1 and self.estimator.__class__.__name__ != "ClusteringRegression":
-            print("-> Processing with clustering features: %s" % (self.clustering_features))
+            if self.print_bool:
+                print("FPGAPredict: running with the clustering features: %s" % (self.clustering_features))
             time1 = perf_counter()
 
             # initialize kmeans
@@ -140,13 +145,13 @@ class FPGAPredict:
             # get kmeans labels and separate each cluster
             labels = np.array(kmeans.labels_)  # np.array(labels)
             time2 = perf_counter()
-            if self.printbool:
-                print("Elapsed Time for Clustering is %.4f seconds\n" % (time2 - time1))
+            if self.print_bool:
+                print("FPGAPredict: Elapsed Time for Clustering is %.4f seconds\n" % (time2 - time1))
 
             # start processing each cluster separately
             for c in range(self.n_clusters):
-                if self.printbool:
-                    print("\nProcessing cluster %d...\n" % c)
+                if self.print_bool:
+                    print("\nFPGAPredict: Processing cluster %d...\n" % c)
 
                 # find the indices of this cluster
                 cluster_indices = np.array(np.where(labels == c))[0]
@@ -235,13 +240,17 @@ class FPGAPredict:
         return features_df, target_df, clustering_features
 
     def select_predict_alldataset(self, x, y):
-        print("FPGAPredict: The results will be computed on the whole dataset")
+        if self.print_bool:
+            print("FPGAPredict: The results will be computed on the whole dataset")
         if self.perm:
-            perm = ExhaustiveSearch(estimator=self.estimator, shuffle=self.shuffle, n_splits=self.n_splits,
-                                    n=self.n, random_state=self.random_state, parallel=self.parallel, n_cpu=self.n_cpu)
+            perm = ExhaustiveSearch(estimator=self.estimator, shuffle=self.true_shuffle, n_splits=self.n_splits,
+                                    n=self.n, random_state=self.random_state, parallel=self.parallel, n_cpu=self.n_cpu, printt=self.print_bool)
             x = perm.fit_transform(x, y)
-            print("Selecting Features is complete.\n")
-            print("Selected features are: " % x.columns)
+            
+            if self.print_bool:
+                print("FPGAPredict: Selecting the prediction features is complete.\n")
+            if self.print_bool:
+                print("FPGAPredict: The selected prediction features are: " % x.columns)
 
         self.features = x.columns
 
@@ -315,7 +324,8 @@ class FPGAPredict:
 
     # select features (if enabled by self.perm) and perform cross validation
     def select_predict(self, _x, y, x2=None, features=None):
-        print("running with estimator: " + str(self.estimator))
+        if self.print_bool:
+            print("FPGAPredict: running with the estimator: " + str(self.estimator))
 
         if x2 is None:  # clustering features
             x2 = _x
@@ -330,17 +340,21 @@ class FPGAPredict:
 
         # perform Exhaustive Search for prediction
         if self.perm:
+            print("FPGAPredict: selecting the prediction features by passing the top %d features to exhaustive search.." % self.n)
+
             perm = ExhaustiveSearch(estimator=self.estimator, n_splits=self.n_splits,
                                     n=self.n, scaling=self.scaling, max=self.perm_up_to,
-                                    parallel=self.parallel, n_cpu=self.n_cpu, min=self.perm_min)
+                                    parallel=self.parallel, n_cpu=self.n_cpu,
+                                    min=self.perm_min, printt=self.print_bool)
             time1 = perf_counter()
 
             x = perm.fit_transform(x, y)
             time2 = perf_counter()
-            print(
-                "Elapsed time for selecting features is %.4f seconds.\nStart time = %.4f seconds and End time = %.2f seconds\n" % (
-                    time2 - time1, time1, time2))
-            print("Selecting Features is complete. Min Error = %.2f\n" % perm.get_min_error())
+            if self.print_bool:
+                print(
+                    "FPGAPredict: Elapsed time for selecting the prediction features is %.4f seconds.\nStart time = %.4f seconds and End time = %.2f seconds\n" % (
+                        time2 - time1, time1, time2))
+                print("FPGAPredict: Selecting the prediction features is complete. Min Error = %.2f\n" % perm.get_min_error())
 
         self.features = x.columns
 
@@ -358,7 +372,7 @@ class FPGAPredict:
         shuffle = True
 
         # check whether to do true shuffle or seeded shuffle
-        if self.shuffle:
+        if self.true_shuffle:
             random_state = None
         else:
             random_state = self.random_state
@@ -383,7 +397,7 @@ class FPGAPredict:
         # start 50 runs
         for p in range(self.n_runs):
 
-            if not self.shuffle:  # increment random state if seeded shuffle
+            if not self.true_shuffle:  # increment random state if seeded shuffle
                 random_state += 1
 
             # use EqualGroupsKFold with clustering regression (to have equal benchmarks from each cluster in the testing/training)
@@ -393,7 +407,8 @@ class FPGAPredict:
             else:
                 if len(x) < self.n_splits:
                     n_splits = len(x)
-                    print("Number of splits was modified to become %d" % n_splits)
+                    if self.print_bool:
+                        print("FPGAPredict: The number of splits was modified to become %d" % n_splits)
                 else:
                     n_splits = self.n_splits
                 kfold = KFold(n_splits=n_splits, shuffle=shuffle,
@@ -420,11 +435,11 @@ class FPGAPredict:
                 # scale the training and testing data
                 if self.scaling != 0 and self.estimator.__class__.__name__ != "ClusteringRegression":
                     if self.scaling == 1 and self.estimator.__class__.__name__ != "ExponentialRegression":
-                        if self.printbool and p < 10:
+                        if self.print_bool and p < 10:
                             print("FPGAPredict: standard scaling will be performed on the input features\n")
                         scaler = StandardScaler()
                     else:
-                        if self.printbool and p < 10:
+                        if self.print_bool and p < 10:
                             print("FPGAPredict: Min Max scaling will be performed on the input features\n")
                         scaler = MinMaxScaler(feature_range=(10, 11))
 
@@ -458,8 +473,8 @@ class FPGAPredict:
                     train_pred = np.array(self.estimator.predict(train_x))
                 training_error = np.abs(
                     np.divide(train_pred.flatten() - np.array(train_y).flatten(), np.array(train_y).flatten())) * 100
-                if self.printbool and p < 10:
-                    print("training error of this split is %s" % (training_error))
+                if self.print_bool and p < 10:
+                    print("FPGAPredict: the training error of this split is %s\n" % (training_error))
                 training_errors = training_errors + list(training_error)
                 time3 = perf_counter()
                 if self.estimator.__class__.__name__ == "ClusteringRegression":
@@ -471,8 +486,8 @@ class FPGAPredict:
                 elapsed2 = time4 - time3
 
                 # print timing
-                if self.printbool and p < 10:
-                    print("Training time for fold %d = %.4f Seconds\nTesting time for fold %d = %.4f Seconds\n" % (
+                if self.print_bool and p < 10:
+                    print("The training time for fold %d = %.4f Seconds\nTesting time for fold %d = %.4f Seconds\n" % (
                         fold, elapsed1, fold, elapsed2))
                 all_predy += list(pred_y.flatten())
                 all_testy += list(test_y.flatten())
@@ -568,7 +583,7 @@ class FPGAPredict:
             all_errors_df.append(errors_df)  # append all error rates for each run
             summaries.append(results_df)  # append results for each run
 
-            if self.printbool and p < 10:
+            if self.print_bool and p < 10:
                 print("\n----------- Result for the run No. %d of this cluster -----------\n" % (p))
                 print("Passed features -> " + str(list(self.features)),"\n")
                 print(results_df.to_string(),"\n")
@@ -733,13 +748,13 @@ class FPGAPredict:
                                                           index_label="cluster " + str(cluster))
                 row += len(self.args["errors"][cluster][run].index.tolist()) + 2
             row += 2
-
-        print("*********** Summary of %d runs ***********\n" % self.n_runs)
-        print(stats.to_string(),"\n")
-        print("Estimator and features used:\n")
-        print(features.to_string(),"\n")
-        print("Average Error(s) for Each Cluster:")
-        print(errors.to_string(),"\n")
+        if self.print_bool:
+            print("*********** Summary of %d runs ***********\n" % self.n_runs)
+            print(stats.to_string(),"\n")
+            print("Estimator and features used:\n")
+            print(features.to_string(),"\n")
+            print("Average Error(s) for Each Cluster:")
+            print(errors.to_string(),"\n")
 
         writer1.save()
         writer2.save()
