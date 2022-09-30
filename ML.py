@@ -598,8 +598,7 @@ class FPGAPredict:
                 result = ret["results"][c][j]
                 print(result.to_string())
                 stat = ret["stats"][c][j]
-                print(stat.to_string())
-                print("\n")
+                print(stat.to_string(),"\n")
 
             print("\n")
 
