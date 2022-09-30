@@ -508,7 +508,6 @@ class FPGAPredict:
                     ["Real " + str(self.target_name[0]), "Predicted " + str(self.target_name[0]),
                      "Average Error (%)", "Cluster"]].groupby(
                     level=0).mean()
-                
             else:
                 avg_n_runs = pd.concat(ret["results"][c])[["Real " + str(self.target_name[0]), "Predicted " + str(self.target_name[0]),"Average Error (%)"]].groupby(
                 level=0).mean()
