@@ -69,7 +69,7 @@ class FPGAPredict:
         self.benchmarks = None  # name of the benchmarks
         self.n_clusters = params["n_clusters"]  # number of clusters to create
         self.n_splits = params["n_splits"]  # number of splits with KFold
-        self.clustering_features = None  # features used to cluster the dataset
+        self.clustering_features_names = None  # features used to cluster the dataset
         self.clustering_estimators = params["clustering_estimators"]  # estimators used for each cluster
         self.clusters_features = params["clusters_features"]  # features used for each cluster
         self.top_clustering_features = []
@@ -112,10 +112,10 @@ class FPGAPredict:
                 print("FPGAPredict: Starting exhaustive search. Current time is %.4f seconds" % time1)
 
             # select clustering features by calling fit_transform()
-            self.clustering_features = perm.fit_transform(list(clustering_features), target_df, features_df).columns.tolist()  # transforms clustering features to the top choice
+            clustering_features = perm.fit_transform(list(clustering_features), target_df, features_df)  # transforms clustering features to the top choice
+            self.clustering_features_names = clustering_features.columns.tolist()
 
             time2 = perf_counter()
-            self.clustering_features = scaled_clustering_features.columns.tolist()
             if self.print_bool:
                 print("FPGAPredict: Finished exhaustive search. Current time is %.2f seconds" % time2)
             elapsed = time2 - time1
@@ -130,17 +130,17 @@ class FPGAPredict:
 
         if self.n_clusters > 1 and self.estimator.__class__.__name__ != "ClusteringRegression":
             if self.print_bool:
-                print("FPGAPredict: running with the clustering features: %s" % (self.clustering_features))
+                print("FPGAPredict: running with the clustering features: %s" % (self.clustering_features_names))
             time1 = perf_counter()
 
             # initialize kmeans
             kmeans = KMeans(n_clusters=self.n_clusters, random_state=42)
 
             # perform standard scaling on the clustering features
-            scaled_clustering_features = StandardScaler().fit_transform(self.clustering_features)
+            scaled_clustering_features = StandardScaler().fit_transform(clustering_features)
 
             # perform clustering on the scaled dataset
-            kmeans.fit(self.clustering_features, target_df)
+            kmeans.fit(scaled_clustering_features, target_df)
 
             # get kmeans labels and separate each cluster
             labels = np.array(kmeans.labels_)  # np.array(labels)
@@ -231,7 +231,7 @@ class FPGAPredict:
                                             sheet_name="clustering_features", engine=engine, index_col=0,
                                             usecols=clustering)  # read clustering features
 
-        self.clustering_features = clustering_features.columns.tolist()
+        self.clustering_features_names = clustering_features.columns.tolist()
 
         # save features and benchmarks names
         self.features = features_df.columns
@@ -403,7 +403,7 @@ class FPGAPredict:
             # use EqualGroupsKFold with clustering regression (to have equal benchmarks from each cluster in the testing/training)
             if self.estimator.__class__.__name__ == "ClusteringRegression":
                 kfold = EqualGroupsKFold(n_splits=self.n_splits, shuffle=shuffle, random_state=random_state,
-                                         features=self.clustering_features, n_clusters=self.n_clusters)
+                                         features=self.clustering_features_names, n_clusters=self.n_clusters)
             else:
                 if len(x) < self.n_splits:
                     n_splits = len(x)
@@ -695,7 +695,7 @@ class FPGAPredict:
 
         clusters_features = list(features)
         if n_clusters > 1 and self.estimator.__class__.__name__ != "ClusteringRegression":
-            features.append(self.clustering_features)
+            features.append(self.clustering_features_names)
 
         estimator_name = self.estimator.__class__.__name__
         if estimator_name == "ClusteringRegression":
