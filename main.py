@@ -44,24 +44,25 @@ if __name__ == "__main__":
     fpga_pred = FPGAPredict(inputs)
 
     # read the data set from excel
-    x, y, x2 = fpga_pred.read_excel_sheet(features=inputs["features"], target=[inputs["target_metric"]],clustering=inputs["clustering_features"])
+    x_input, y_target, x_clustering = fpga_pred.read_excel_sheet(features=inputs["features"], target=[inputs["target_metric"]], clustering=inputs["clustering_features"])
 
     # select the top clustering features (only if n_clusters > 1 and clustering_perm=True)
-    top_clustering_features = fpga_pred.select_clustering_features(x,y,x2)
+    top_clustering_features = fpga_pred.select_clustering_features(x_input, y_target, x_clustering)
 
     # prepare an array to store the average error of each top clustering feature subset
     avg_error_4each_clustering_subset = []
     output_4each_clustering_subset = []
 
     # iterate through the top 2 clustering features
-    for a in range(2):
+    for a in range(len(top_clustering_features)):
+        if a > 1: # only go over the first two top clustering features
+            break
         # select the prediction features for each cluster
-        features_4each_cluster = fpga_pred.select_prediction_features(x, y, x2,
-                                                                      clustering_features=top_clustering_features[a])
+        features_4each_cluster = fpga_pred.select_prediction_features(x_input, y_target, x_clustering,                                                                      clustering_features=top_clustering_features[a])
 
         # validate the model with the seeded shuffle
         fpga_pred.random_state = inputs["random_state"]
-        ret = fpga_pred.validate_model(x, y, x2[top_clustering_features[a]],
+        ret = fpga_pred.validate_model(x_input, y_target, x_clustering[top_clustering_features[a]],
                                        estimators_4each_cluster=inputs["estimators"],
                                        features_4each_cluster=features_4each_cluster,
                                        with_clustering=False,
@@ -74,7 +75,7 @@ if __name__ == "__main__":
         excelname1, excelname2 = fpga_pred.store_output(ret)
         ##############################################################
         # now validate the model with true shuffle
-        ret = fpga_pred.validate_model(x, y, x2[top_clustering_features[a]],
+        ret = fpga_pred.validate_model(x_input, y_target, x_clustering[top_clustering_features[a]],
                                        estimators_4each_cluster=inputs["estimators"],
                                        features_4each_cluster=features_4each_cluster,
                                        with_clustering=False,
@@ -89,7 +90,7 @@ if __name__ == "__main__":
 
         ############################################################################
         # now validate the model with seeded shuffle and with clustering
-        ret = fpga_pred.validate_model(x, y, x2[top_clustering_features[a]],
+        ret = fpga_pred.validate_model(x_input, y_target, x_clustering[top_clustering_features[a]],
                                        estimators_4each_cluster=inputs["estimators"],
                                        features_4each_cluster=features_4each_cluster,
                                        with_clustering=True,
@@ -105,7 +106,7 @@ if __name__ == "__main__":
                                excelname2=excelname2, mode='a', with_clustering=True)
 
         # now validate the model with true shuffle and with clustering
-        ret = fpga_pred.validate_model(x, y, x2[top_clustering_features[a]],
+        ret = fpga_pred.validate_model(x_input, y_target, x_clustering[top_clustering_features[a]],
                                        estimators_4each_cluster=inputs["estimators"],
                                        features_4each_cluster=features_4each_cluster,
                                        with_clustering=True,
@@ -115,7 +116,7 @@ if __name__ == "__main__":
         fpga_pred.print_result(ret, with_clustering=True)
 
         # store the results in a new sheet
-        fpga_pred.store_output(ret, sheet_name="seeded_{}runs_clustering".format(fpga_pred.n_runs),
+        fpga_pred.store_output(ret, sheet_name="true_{}runs_clustering".format(fpga_pred.n_runs),
                                excelname1=excelname1,
                                excelname2=excelname2, mode='a', with_clustering=True)
     argmin = np.argmin(avg_error_4each_clustering_subset)
