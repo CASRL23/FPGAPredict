@@ -1,6 +1,6 @@
 from estimators import *
 import sys
-from new_ML import FPGAPredict
+from ML import FPGAPredict
 import warnings
 
 warnings.filterwarnings("ignore")
