@@ -19,10 +19,6 @@ total_exit_codes += exit_code
 exit_code = os.system("python3 main.py estimator=1 prediction_n=5 prediction_ex_search=True excelname=arria10_features.xlsx clustering_n=10 clustering_ex_search=True n_clusters=3 features=None target_metric=\"Clock Period\" clustering_features=None n_splits=5 random_state=0 n_runs=50 scaling=1 clustering_min_features=1 prediction_min_features=2 prediction_max_features=None clustering_max_features=5 n_cpu=None parallel=True print=False regression_test=./test/test4.xlsx")
 total_exit_codes += exit_code
 
-# test5: run with the clock period, 3 clusters, and exponential regression. Permutation with 5 features only.
-exit_code = os.system("python3 main.py estimator=2 prediction_n=5 prediction_ex_search=True excelname=arria10_features.xlsx clustering_n=10 clustering_ex_search=True n_clusters=3 features=None target_metric=\"Clock Period\" clustering_features=None n_splits=5 random_state=0 n_runs=50 scaling=1 clustering_min_features=1 prediction_min_features=2 prediction_max_features=None clustering_max_features=5 n_cpu=None parallel=True print=False regression_test=./test/test5.xlsx")
-total_exit_codes += exit_code
-
 # test6: run with the clock cycles, 3 clusters, and linear regression. Permutation with 5 features only.
 exit_code = os.system("python3 main.py estimator=1 prediction_n=5 prediction_ex_search=True excelname=arria10_features.xlsx clustering_n=10 clustering_ex_search=True n_clusters=3 features=None target_metric=\"Clock Cycles\" clustering_features=None n_splits=5 random_state=0 n_runs=50 scaling=1 clustering_min_features=1 prediction_min_features=2 prediction_max_features=None clustering_max_features=5 n_cpu=None parallel=True print=False regression_test=./test/test6.xlsx")
 total_exit_codes += exit_code
@@ -40,9 +36,9 @@ total_exit_codes += exit_code
 if total_exit_codes == 0:
     print("\nALL REGRESSION TESTS PASSED!! :)\n")
     exit(0)
-elif total_exit_codes == 8:
+elif total_exit_codes == 7:
     print("\nWARNING: all regression tests FAILED! :(\n")
     exit(1)
 else:
-    print("\nWARNING: some regression tests FAILED! :(\n")
+    print("\nWARNING: some (%d) regression tests FAILED! :(\n" %total_exit_codes)
     exit(2)
