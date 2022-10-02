@@ -19,22 +19,39 @@ Passed paramaters through command line will override any configurations in confi
 
 ### Parameters Definitions
 
-*estimator*: (default: 1) an integer from the following dictionary:
- 		    {1: 'LinearRegression', 2: 'ExponentialRegression', 3: 'RandomForestRegressor', 4: 'MLPRegressor', 5: 'DecisionTreeRegressor', 6: 'KNeighborsRegressor'}
-
 *excelname*: (default: 'arria2_features.xls') the name of the excel file that contains the data, must have an extension of xls or xlsx.
 
-*n*: (default: 22) the number of top PCC ranked prediction features to pass to permutation, only used when perm=True.
+*estimator_4each_cluster*: a 2D array or None, containing the estimator of each cluster (i.e. [cluster 0 estimator, cluster 1 estimator ... etc]). Each estimator can be an integer or a string corresponding to a key from the following dictionary (defined as ESTIMATORS in estimators.py):
+			{1: LinearRegression(),
+			2: ExponentialRegression(),
+			3: RandomForestRegressor(),
+              		4: MLPRegressor(hidden_layer_sizes=(100,), learning_rate='adaptive', max_iter=500,
+                               solver='lbfgs'),
+			5: DecisionTreeRegressor(),
+              		6: KNeighborsRegressor(),
+			7: Ridge(),
+              		"Linear": LinearRegression(),
+			"Exp": ExponentialRegression(),
+			"RF": RandomForestRegressor(),
+              		"ANN": MLPRegressor(hidden_layer_sizes=(100,), learning_rate='adaptive', max_iter=500,
+                               solver='lbfgs'),
+              		"DecTree":DecisionTreeRegressor(),
+              		"KNN":KNeighborsRegressor(),
+              		"Ridge":Ridge()
+              		}
+*estimator*: (default: 1) an integer or string corresponding to a key from the dictionary above. This is the estimator to use with all clusters ONLY used if estimators_4each_clusters is defined as "None". 
 
-*perm* (default: False): boolean indicates whether to select prediction features by permutation or not.
+*prediction_n*: (default: 22) the number of top PCC ranked prediction features to pass to exhaustive search, only used when prediction_ex_search=True.
 
-*clustering_n* (default: 50): the number of top PCC ranked CLUSTERING features to pass to permutation. Only used when clustering_perm=True.
+*prediction_ex_search* (default: False): boolean indicates whether to select prediction features by exhaustive search or not.
 
-*clustering_perm* (default: False): boolean indicates whether to select CLUSTERING features by permutation or not.
+*clustering_n* (default: 50): the number of top PCC ranked CLUSTERING features to pass to exhaustive search. Only used when clustering_perm=True.
+
+*clustering_ex_search* (default: True): boolean indicates whether to select CLUSTERING features by exhaustive search or not.
 
 *n_clusters* (default: 1): the number of clusters to create. If 1 then clustering is not performed.
 
-*features* (default: None i.e. all features): An array of strings where each string indicates the features to use for prediction. If None (default), all features are passed.
+*features* (default: None i.e. all features): An array of strings where each string indicates the name of the input features to use for prediction. If None (default), all features are passed.
 
 *target_feature* (default: "Clock Cycles"): A string of the target feature to predict.
 
@@ -43,15 +60,15 @@ Passed paramaters through command line will override any configurations in confi
 *n_splits* (default: 5): Number of KFold n_splits. If n_splits <= 1 then KFold isn't performed and the results will show the training error only.
 *shuffle* (default: True): whether to perform true shuffle or seeded shuffle with KFold. If True then true shuffle is performed, but if False then seeded shuffle is performed. Not used if n_splits <= 1.
 
-*random_state* (default: None): The starting seed of the shuffle. Only used if shuffle=False. This variable is incremented with every run performed (i.e. it is incremented <n_runs> times).
+*random_state* (default: None): The starting seed of the shuffle when seeded shuffle is performed. This variable is incremented with every run performed (i.e. it is incremented <n_runs> times).
 
-*perm_up_to* (default: None): an integer or None, the maximum number of features to try with prediction exhaustive search. If None then this number is equal to n. Only used when perm=True.
+*prediction_max_features* (default: None): an integer or None, the maximum number of features to try with prediction exhaustive search. If None then this number is equal to *n*. Only used when perm=True.
 
-*clustering_perm_up_to* (default: 5): an integer or None, the maximum number of clustering features to try in permutation. If None then this number is equal to clustering_n. Only used when clustering_perm=True.
+*clustering_max_features* (default: 5): an integer or None, the maximum number of clustering features to try in permutation. If None then this number is equal to clustering_n. Only used when clustering_perm=True.
 
-*perm_min* (default: 1): an integer, the minimum number of features to try with prediction exhaustive search. 
+*prediction_min_features* (default: 2): an integer, the minimum number of features to try with prediction exhaustive search. 
 
-*clustering_perm_min* (default: 1): an integer, the minimum number of clustering features to try with clustering exhaustive search. 
+*prediction_min_features* (default: 1): an integer, the minimum number of clustering features to try with clustering exhaustive search. 
 
 *n_runs* (default: 50): an integer, the number of random runs to perform to record their results. Every run is performed with a different seed to make sure each run leads to a different random split.
 
@@ -79,11 +96,11 @@ Four main outputs are stored:
 
 Use the following command to collect both clustering features with exhaustive search and prediction features with exhaustive search as well for a specific board and with a specific estimator. 
 
-	python3 main.py excelname=<string> estimator=1 n=22 perm=True clustering_n=22 clustering_perm=True n_clusters=2 target_feature=<string> shuffle=True perm_shuffle=True random_state=None &><filename> &
+	python3 main.py excelname=<string> estimator=<estimator str or int> n_clusters=<int> target_metric=<string> random_state=<int> prediction_n=22 prediction_ex_search=True prediction_min_features=2 prediction_max_features=None clustering_n=50 clustering_ex_search=True clustering_min_features=1 clustering_max_features=None &><filename> &
 	
 		
 For example, 
 	
-	python3 main.py excelname=arria10_features.xls target_feature='Clock Period' shuffle=True random_state=None perm_shuffle=True clustering_perm=True clustering_n=22 n_clusters=2 perm=True n=22 scaling=1 estimator=1
+	python3 main.py excelname=arria10_features.xlsx estimator="Linear" n_clusters=2 target_metric="Clock Period" random_state=0 prediction_n=22 prediction_ex_search=True prediction_min_features=2 prediction_max_features=None clustering_n=50 clustering_ex_search=True clustering_min_features=1 clustering_max_features=None &><filename> &
 
 This command will find the clustering features and prediction features to predict the clock period on Arria 10 with 2 clusters and with linear regression.
