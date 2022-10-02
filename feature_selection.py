@@ -2,15 +2,10 @@
 Feature Selection using Exhaustive Search and PCC
 '''
 import multiprocessing as mp
-import os
 import time
 import random
 from itertools import combinations
 from datetime import datetime
-
-import pandas as pd
-from scipy.stats import pearsonr
-import scipy
 from estimators import *
 from utils import name_file
 
