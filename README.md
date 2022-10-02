@@ -82,7 +82,7 @@ Passed paramaters through command line will override any configurations in confi
 ### Results
 Four main outputs are stored:
 1)  A directory of the target feature will be created (if not there already). 
-    Under this directory, an excel file will be stored of the format: <estimator>\_<board>\_c<n_clusters>.xlsx <br>
+    Under this directory, an excel file will be stored of the format: estimator\_<board>\_c<n_clusters>.xlsx <br>
     This file will contain the following sheets: <br>
     a. **"seeded\_<n_runs>\_runs"**: This sheet will contain the results of evaluating the model by running <n\_runs> seeded KFolds on each cluster **separately**. Treating each cluster separately means we cluster the original (whole) dataset and we treat each cluster as a separate dataset. Then we collect the overall average error over all benchmarks in all clusters. The folds of this sheet are seeded meaning that they must not change if we run the experiment again with the same seeds. You can specify the starting seed in the parameter "random_state".<br>
     b. **"true\_<n_runs>\_runs"**: the experiment done in this sheet is almost exactly the same as the one in the previous sheet except that now we do true shuffle. As such, the results of this sheet may change if we run the experiment again since the folds are selected randomly every time.<br>
