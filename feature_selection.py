@@ -9,7 +9,6 @@ from datetime import datetime
 from estimators import *
 from utils import name_file
 
-
 class ExhaustiveSearch:
 
     def __init__(self, estimator, n_splits=5, n=15, min=1, max=None, clustering=False,
@@ -402,9 +401,6 @@ def permutation_fit(x, y, estimator, subset, n_splits=5, clustering=False,
                 # an array used to correct the mislabelling
                 new_labels = [i for i in range(n_clusters)]
                 # check if the clusters are mislabled
-                training_clusters={}
-                training_error = 0  # clustering training error
-                arr_of_clusters = np.array([])
 
                 wrong_training_clusters = {}  # dictionary of the clusters that are mispredicted or mislabelled
 
@@ -417,8 +413,8 @@ def permutation_fit(x, y, estimator, subset, n_splits=5, clustering=False,
                     if cluster_error == 0:
                         continue
                     elif cluster_error < cluster_bench.shape[0]/2:
-                        training_error += cluster_error 
-                        continue 
+                        training_error += cluster_error
+                        continue
                     else:
                         not_checked_original_clusters.append(c)
                         wrong_training_clusters[c] = [cluster_bench, cluster_error]
@@ -446,6 +442,7 @@ def permutation_fit(x, y, estimator, subset, n_splits=5, clustering=False,
                         not_checked_original_clusters.remove(min_c)
                     training_error += min_error
 
+                testing_error = 0
 
                 for a in range(len(list(pred_y))):
                     pred_y[a] = new_labels[pred_y[a]]
@@ -522,7 +519,7 @@ class PCC:
         all_pcc = np.abs(np.corrcoef(x,y, rowvar=False)[-1][:-1])
         if np.isnan(all_pcc).any():
             all_pcc = np.nan_to_num(all_pcc, nan=0)
-
+            
         if self.k is not None:
             mask = all_pcc.argsort()[-self.k:]
         else:
