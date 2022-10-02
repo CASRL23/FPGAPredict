@@ -643,8 +643,8 @@ class FPGAPredict:
 
         # adjust the plot size
         SMALL_SIZE = 12
-        MEDIUM_SIZE = 16
-        BIGGER_SIZE = 18
+        MEDIUM_SIZE = 14
+        BIGGER_SIZE = 16
 
         plt.rc('font', size=SMALL_SIZE)  # controls default text sizes
         plt.rc('axes', labelsize=BIGGER_SIZE)  # fontsize of the x and y labels
@@ -725,18 +725,20 @@ class FPGAPredict:
             n_clusters = 1
         else:
             n_clusters = self.n_clusters
-        for j in range(self.n_runs):
-            if j > 10:
-                break
-            for c in range(n_clusters):
-                print("cluster {}:\n".format(c))
-                result = nruns_result_dict["results"][c][j]
-                print(result.to_string())
-                stat = nruns_result_dict["stats"][c][j]
-                print(stat.to_string())
+        if self.print_bool:
+            for j in range(self.n_runs):
+                if j > 10:
+                    break
+                for c in range(n_clusters):
+                    print("cluster {}:\n".format(c))
+                    result = nruns_result_dict["results"][c][j]
+                    print(result.to_string())
+                    stat = nruns_result_dict["stats"][c][j]
+                    print(stat.to_string())
+                    print("\n")
+
                 print("\n")
 
-            print("\n")
 
     def plot_show(self):
         plt.show()
