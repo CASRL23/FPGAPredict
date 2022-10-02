@@ -1,214 +1,45 @@
+import numpy as np
+
 from feature_selection import *
 from datetime import date
 from time import perf_counter
-from sklearn.metrics import mean_squared_error
 from utils import name_file
+import matplotlib.pyplot as plt
+import openpyxl
 
 
 class FPGAPredict:
-    '''
-    FPGAPredict: a class that is able to read data from an excelfile,
-                select features using PCC and exhaustive search,
-                cluster the dataset,
-                perform KFold with model validation,
-                run n times
-
-    initialization variables:
-
-    excelname: the name of the excel file that contains the data, must end with xls or xlsx.
-    estimator: an integer from the following dictionary:
- 		    {1: 'LinearRegression', 2: 'ExponentialRegression', 3: 'RandomForestRegressor', 4: 'MLPRegressor', 5: 'DecisionTreeRegressor', 6: 'KNeighborsRegressor'}
-    n: the number of top PCC ranked prediction features to pass to Exhaustive Search, only used when perm=True
-	perm: boolean indicates whether to select prediction features by Exhaustive Search or not
-	clustering_n: the number of top PCC ranked CLUSTERING features to pass to Exhaustive Search, only used when clustering_perm=True
-	clustering_perm: boolean indicates whether to select CLUSTERING features by Exhaustive Search or not
-	shuffle: whether to true shuffle the data points with KFold. If False, seeded shuffle is performed instead.
-	n_splits: Number of KFold n_splits. If n_splits <= 1 then KFold isn't performed and the results will show the training error only.
-	n_clusters: the number of clusters to create. If 1 then clustering is not performed
-	random_state: an integer indicating the random state to start with. Only used if shuffle=False.
-	printt: whether to print the processing log and the results.
-	scaling: an integer, whether to scale the dataset. If 1: use standard scaling, If 2: use MinMax, else don't scale.
-	clustering_estimators: an array-like of integers for the estimator of each cluster. Only used when estimator=0 (i.e. clustering regression)
-	n_runs: an integer, the number of random runs to perform to record their results. Every run is performed with a different seed to make sure each run leads to a different random split.
-	clustering_perm_up_to: an integer or None, the maximum number of clustering features to try in Exhaustive Search. Only used if clustering_perm=True.
-	perm_up_to: an integer or None, the maximum number of prediction features to try in Exhaustive Search. Only used if perm=True.
-	clustering_perm_min: an integer, the minimum number of clustering features to try in Exhaustive Search. Only used if clustering_perm=True.
-	perm_min: an integer, the minimum number of prediction features to try in Exhaustive Search. Only used if perm=True.
-	parallel: boolean, whether to perform parallel processing with Exhaustive Search or not. Only used if either perm=True or clustering_perm=True.
-	n_cpu: an integer or None, the number of parallel CPU runs to perform. If None, the code calculates the number of available cores and subtracts 3. Only used if parallel=True and either perm or clustering_perm are True.
-	clusters_features: A 2D array that contains the features for each cluster in the following format: [features for c1, features for c2..., features for c<n_clusters>]
-    '''
 
     def __init__(self, params):
         global ESTIMATORS
-
-        self.perm_min = params["perm_min"]  # min features to try in exhaustive search
-        self.clustering_perm_min = params["clustering_perm_min"]  # min clustering features to try in exhaustive search
+        self.estimator = params["estimator"]
         self.parallel = params["parallel"]  # whether to perform parallel processing with exhaustive search
         self.n_cpu = params["n_cpu"]  # number of cores to use with parallel processes
         self.n_runs = params["n_runs"]  # number of random runs to perform
-        self.perm_up_to = params["perm_max"]  # max features to try in exhaustive search
-        self.clustering_perm_up_to = params[
-            "clustering_perm_max"]  # max clustering features to try in exhaustive search
-        estimator = params["estimator"]
-        if isinstance(estimator, int):  # get the estimator from the dictionary
-            self.estimator = ESTIMATORS[estimator]
-        else:
-            self.estimator = estimator
-
         self.print_bool = params["print"]  # whether to print the results or not
         self.excelname = params["excelname"]  # the name of the excel file that has the data
-        self.random_state = params["random_state"]  # random state with KFold
-        self.perm = params["perm"]  # boolean, whether to do prediction exhaustive search or not
-        self.n = params["n"]  # No. features to pass to exhaustive search. only used if perm is True
-        self.clustering_n = params[
-            "clustering_n"]  # No. clustering features to pass to exhaustive search. only used if clustering_perm is True
-        self.clustering_perm = params["clustering_perm"]  # boolean, whether to do clustering exhaustive search or not
-        self.true_shuffle = params["shuffle"]  # whether to perform true shuffle or not. If not, seeded shuffle is performed
-        self.board = params["excelname"].split("_")[0]  # the board name extracted from the excel file
         self.benchmarks = None  # name of the benchmarks
         self.n_clusters = params["n_clusters"]  # number of clusters to create
         self.n_splits = params["n_splits"]  # number of splits with KFold
-        self.clustering_features = None  # features used to cluster the dataset
-        self.clustering_estimators = params["clustering_estimators"]  # estimators used for each cluster
-        self.clusters_features = params["clusters_features"]  # features used for each cluster
-        self.top_clustering_features = []
-        # if the estimator is clustering regression, set up the features and estimators for each cluster
-        if params["estimator"] == 0:
-            clustering_estimators = zip(list(self.clustering_estimators), list(self.clusters_features))
-            self.clustering_estimators = list(clustering_estimators)
-            self.estimator.set_parameters(estimators=self.clustering_estimators)
         self.scaling = params["scaling"]
-        self.results = None # a dataframe of the results, created after a call to store_output
 
-    # start FPGAPredict based on the configurations
-    def run(self, features=None, target=None, clustering_features=None, output_results=True):
-        if self.print_bool:
-            print("******** FPGAPredict Started Running ******** \n")
-
-        # assign the clustering features for clustering regression
-        if self.estimator.__class__.__name__ == "ClusteringRegression":
-            self.estimator.set_parameters(clustering_features=clustering_features)
-
-        # load data as data frames
-        x, y, x2 = self.read_excel_sheet(features, target, clustering_features)
-
-        # initialize results dictionary
-        all_args = {"features": [], "results": [], "split": [], "errors": [], "avg_training_error": []}
-
-        # save clustering features
-        if clustering_features is not None:
-            self.clustering_features = list(clustering_features)
-
-        # find clustering features using Exhaustive Search.
-        if self.clustering_perm and self.n_clusters > 1:
-            print("FPGAPredict: selecting clustering features by passing the top %d features to exhaustive search.." % self.clustering_n)
-
-            # initialize Exhaustive Search using KMeans
-            perm = ExhaustiveSearch(estimator=KMeans(n_clusters=self.n_clusters, random_state=42),
-                                    n_splits=self.n_splits, n=self.clustering_n, clustering=True,
-                                    max=self.clustering_perm_up_to, min=self.clustering_perm_min,
-                                    parallel=self.parallel, n_cpu=self.n_cpu, printt=self.print_bool)
-
-            time1 = perf_counter()
-
-            if self.print_bool:
-                print("FPGAPredict: Starting exhaustive search. Current time is %.4f seconds" % time1)
-
-            # select clustering features by calling fit_transform()
-            x2 = perm.fit_transform(x2, y, x)  # transforms clustering features to the top choice
-            time2 = perf_counter()
-            self.clustering_features = x2.columns.tolist()
-            if self.print_bool:
-                print("FPGAPredict: Finished exhaustive search. Current time is %.2f seconds" % time2)
-            elapsed = time2 - time1
-            self.top_clustering_features = np.array(perm.best_c_subsets["Clustering Features"])
-
-            if self.print_bool:
-                print(
-                    "FPGAPredict: ELAPSED TIME FOR SELECTING THE FEATURES IS: %.4f seconds.\nStart Time = %.4f seconds and End Time = %.4f seconds\n" % (
-                      elapsed, time1, time2))
-                print("FPGAPredict: The clustering features were selected successfully")
-                print("FPGAPredict: The selected clustering features are: \n%s" % x2.columns.tolist())
-
-        if self.n_clusters > 1 and self.estimator.__class__.__name__ != "ClusteringRegression":
-            if self.print_bool:
-                print("FPGAPredict: running with the clustering features: %s" % (self.clustering_features))
-            time1 = perf_counter()
-
-            # initialize kmeans
-            kmeans = KMeans(n_clusters=self.n_clusters, random_state=42)
-
-            # perform standard scaling on the clustering features
-            x2 = StandardScaler().fit_transform(x2)
-
-            # perform clustering on the scaled dataset
-            kmeans.fit(x2, y)
-
-            # get kmeans labels and separate each cluster
-            labels = np.array(kmeans.labels_)  # np.array(labels)
-            time2 = perf_counter()
-            if self.print_bool:
-                print("FPGAPredict: Elapsed Time for Clustering is %.4f seconds\n" % (time2 - time1))
-
-            # start processing each cluster separately
-            for c in range(self.n_clusters):
-                if self.print_bool:
-                    print("\nFPGAPredict: Processing cluster %d...\n" % c)
-
-                # find the indices of this cluster
-                cluster_indices = np.array(np.where(labels == c))[0]
-
-                # get the input features for this cluster
-                cluster_x = pd.DataFrame(x.copy().to_numpy()[cluster_indices], columns=x.columns,
-                                         index=x.index[cluster_indices])
-
-                # if clusters_features are declared then get the features for this cluster only
-                if self.clusters_features is not None:
-                    cluster_x = cluster_x[self.clusters_features[c]]
-
-                # get the output feature for this cluster
-                cluster_y = pd.DataFrame(y.copy().to_numpy()[cluster_indices], columns=y.columns,
-                                         index=y.index[cluster_indices])
-
-                # if n_splits is 1 or less, fit and predict the whole dataset without KFold
-                if self.n_splits <= 1:
-                    self.select_predict_alldataset(cluster_x, cluster_y, f)
-                    all_args = self.args
-                    all_args["results"] = [all_args["results"]]
-                    all_args["errors"] = [all_args["errors"]]
-                    all_args["features"] = [all_args["features"]]
-                    return all_args
-
-                else:  # perform KFold
-                    ret = self.select_predict(cluster_x, cluster_y)
-
-                    all_args["results"].append(
-                        self.args["results"])
-                    all_args["errors"].append(self.args["errors"])
-                    all_args["features"].append(self.args["features"])
-
-            return all_args
-
-        # perform KFold without clustering
-        elif self.n_splits > 1:
-            if self.clusters_features is not None and self.estimator.__class__.__name__ != "ClusteringRegression":
-                x = x[self.clusters_features[0]]
-            ret = self.select_predict(x, y, x2)
-            all_args = self.args
-            all_args["results"] = [all_args["results"]]
-            all_args["errors"] = [all_args["errors"]]
-            all_args["features"] = [all_args["features"]]
-            return all_args
-        else:  # whole dataset without clustering
-            self.select_predict_alldataset(x, y)
-            all_args = self.args
-            all_args["results"] = [all_args["results"]]
-            all_args["errors"] = [all_args["errors"]]
-            all_args["features"] = [all_args["features"]]
-            return all_args
-
-    # reads the excel file and returns x and y as numpy arrays
+    '''
+    Description:
+    reads the excel file that has the dataset.
+    The excel file can be of format .xlsx or .xls and it must have the sheets:
+    "features" that has the input features and "target" which has the target metrics
+    It may also have "clustering_features" sheet for the clustering features.
+    If it does not have the latter sheet, the clustering features will be read from the "features" sheet.
+    parameters:
+    - features: the names of the input features to read from the excel file. If None, read all the "features" sheet.
+    - target: the names of the target features to read from the excel file. If None, read all the "target" sheet. 
+        Note: It is strongly recommended to read only one target metric at a time. 
+    - clustering: the names of the clustering features to read from the excel file. If None, read all the "features" or "clustering_features" sheet.
+    returns: three dataframes of the same index as follows.
+        x_input: contains the input features dataset.
+        y_target: contains the target metrics dataset.
+        x_clustering: contains the clustering features dataset.
+    '''
     def read_excel_sheet(self, features, target, clustering):
 
         # either read only part of the excel file or read it all based on the configurations
@@ -222,425 +53,499 @@ class FPGAPredict:
             clustering = list(clustering)
             clustering.insert(0, "Benchmarks")
 
-        # save the target name
-        self.target_feature = target
-
         # run with xlrd if the file is xls, otherwise run with openpyxl
         if self.excelname.split(".")[1] == "xls":
             engine = "xlrd"
         else:
             engine = "openpyxl"
 
-        features_df = pd.read_excel(self.excelname, sheet_name="features", engine=engine, index_col=0,
-                                    usecols=features)  # read features sheet
-        target_df = pd.read_excel(self.excelname, sheet_name="target", engine=engine, index_col=0,
-                                  usecols=target)  # read target sheet
-        clustering_features = pd.read_excel(self.excelname,
-                                            sheet_name="clustering_features", engine=engine, index_col=0,
-                                            usecols=clustering)  # read clustering features
+        x_input = pd.read_excel(self.excelname, sheet_name="features", engine=engine, index_col=0,
+                                usecols=features)  # read features sheet
+        y_target = pd.read_excel(self.excelname, sheet_name="target", engine=engine, index_col=0,
+                                 usecols=target)  # read target sheet
+        try:
+            x_clustering = pd.read_excel(self.excelname,
+                                         sheet_name="clustering_features", engine=engine, index_col=0,
+                                         usecols=clustering)  # read clustering features
 
-        self.clustering_features = clustering_features.columns.tolist()
-        x = features_df
-        y = target_df
-        x2 = clustering_features
+        except KeyError:
+            x_clustering = pd.read_excel(self.excelname,
+                                         sheet_name="features", engine=engine, index_col=0,
+                                         usecols=clustering)  # read clustering features
 
         # save features and benchmarks names
-        self.features = features_df.columns
-        self.benchmarks = x.index.tolist()
-        self.target_name = target_df.columns
-        return x, y, x2
+        self.features = x_input.columns.tolist()
+        self.benchmarks = x_input.index.tolist()
+        self.target_name = y_target.columns
+        return x_input, y_target, x_clustering
 
-    def select_predict_alldataset(self, x, y):
-        if self.print_bool:
-            print("FPGAPredict: The results will be computed on the whole dataset")
-        if self.perm:
-            perm = ExhaustiveSearch(estimator=self.estimator, shuffle=self.true_shuffle, n_splits=self.n_splits,
-                                    n=self.n, random_state=self.random_state, parallel=self.parallel, n_cpu=self.n_cpu, printt=self.print_bool)
-            x = perm.fit_transform(x, y)
-            
-            if self.print_bool:
-                print("FPGAPredict: Selecting the prediction features is complete.\n")
-            if self.print_bool:
-                print("FPGAPredict: The selected prediction features are: " % x.columns)
 
-        self.features = x.columns
+    '''
+    Description:
+    selects the clustering features using exhaustive search (only if the parameter ex_search=True).
+    Exhaustive search internally uses the Pearson Correlation Coefficient (PCC) to select up 
+    to n features and then pass them to Exhaustive Search.
+    parameters:
+        -x_input: a dataframe of the input features dataset.
+        -y_target: a dataframe of the target features dataset.
+        -x_clustering: a dataframe of the clustering features dataset.
+        -ex_search: a boolean, whether to perform exhaustive search or not.
+        -min_features: integer, the minimum features to try in exhaustive search.
+        -max_features: integer, the maximum features to try in exhaustive search.
+        -n: integer, the number of features to select (using PCC) and pass to exhaustive search.
+        
+    returns: A 2-D list of the top clustering features.
+        -top_clustering_features: a 2-D list containing all top clustering features subsets that gave 0% clustering error 
+            or
+         only one clustering features subset that has the minimum clustering error (if not 0%)
+    '''
+    def select_clustering_features(self, x_input, y_target, x_clustering, ex_search=False, min_features=2, max_features=None, n=10):
 
-        numpy_x = x.copy().to_numpy()
-        numpy_y = y.copy().to_numpy().flatten()
+        # perform exhaustive search if ex_search=True
+        if ex_search:
+            print(
+                "FPGAPredict: selecting clustering features by passing the top %d features to exhaustive search.." % n)
 
-        benchmarks = x.index.tolist()
-        self.estimator = copy(self.estimator)  # create a copy in memory
-        self.estimator.fit(numpy_x, numpy_y)
-        pred_y = np.array(self.estimator.predict(numpy_x)).flatten()
-        all_errors = np.divide(np.abs(pred_y - numpy_y), numpy_y) * 100
-        if self.estimator.__class__.__name__ == "ClusteringRegression":
-            b = self.estimator.coef_
-            a = self.estimator.intercept_
+            # initialize Exhaustive Search using KMeans
+            ex_selector = ExhaustiveSearch(estimator=KMeans(n_clusters=self.n_clusters, random_state=42),
+                                    n_splits=self.n_splits, n=n, clustering=True,
+                                    max=max_features, min=min_features,
+                                    parallel=self.parallel, n_cpu=self.n_cpu, printt=self.print_bool)
 
-            features = self.estimator.features
-            clusters = self.estimator.clusters
-            estimators = self.estimator.estimators_pred
-            if a is not None and b is not None:
-                equation = get_equation(a, b, features)
-                equations = [equation for i in range(all_errors.shape[0])]
-                results = list(
-                    zip(numpy_y, pred_y, all_errors,
-                        estimators, clusters,
-                        equations))
-            else:
-                equation = None
-                results = list(
-                    zip(numpy_y, pred_y, all_errors,
-                        estimators, clusters))
-
-        elif self.estimator.__class__.__name__ == "LinearRegression" or self.estimator.__class__.__name__ == "ExponentialRegression":
-            clusters = None
-            b = self.estimator.coef_
-            a = self.estimator.intercept_
-            if b is not None:
-                equation = get_equation(a, b, self.features)
-                results = list(
-                    zip(numpy_y, pred_y, all_errors,
-                        [self.estimator.__class__.__name__ for i in range(len(benchmarks))],
-                        [equation for i in range(len(benchmarks))]))
-            else:
-                clusters = None
-                equation = None
-                results = list(
-                    zip(numpy_y, pred_y, all_errors,
-                        [self.estimator.__class__.__name__ for i in range(len(benchmarks))]))
-        else:
-            clusters = None
-            equation = None
-            results = list(
-                zip(numpy_y, pred_y, all_errors,
-                    [self.estimator.__class__.__name__ for i in range(len(benchmarks))]))
-
-        columns = []
-        for target in self.target_name:
-            columns += ["Real " + str(target), "Predicted " + str(target)]
-            self.target = target
-        columns += ["Error (%)", "Estimator"]
-        if clusters is not None:
-            columns += ["Cluster"]
-        if equation is not None:
-            columns += ["Equation"]
-        results_df = pd.DataFrame(results, index=benchmarks, columns=columns)
-
-        errors_arr = [[np.mean(all_errors), np.std(all_errors)]]
-        errors_df = pd.DataFrame(errors_arr, columns=["Average Error (%)", "STDEV Error"],
-                                 index=["Summary: "])
-        self.args = {"features": self.features, "results": [results_df], "errors": [errors_df], "split": None,
-                     "avg_training_error": np.mean(all_errors)}
-
-    # select features (if enabled by self.perm) and perform cross validation
-    def select_predict(self, _x, y, x2=None, features=None):
-        if self.print_bool:
-            print("FPGAPredict: running with the estimator: " + str(self.estimator))
-
-        if x2 is None:  # clustering features
-            x2 = _x
-        else:
-            c_features = x2.columns.tolist()
-
-        # transform input features if features is not None
-        if features is not None:
-            x = _x[features]
-        else:
-            x = _x.copy()
-
-        # perform Exhaustive Search for prediction
-        if self.perm:
-            print("FPGAPredict: selecting the prediction features by passing the top %d features to exhaustive search.." % self.n)
-
-            perm = ExhaustiveSearch(estimator=self.estimator, n_splits=self.n_splits,
-                                    n=self.n, scaling=self.scaling, max=self.perm_up_to,
-                                    parallel=self.parallel, n_cpu=self.n_cpu,
-                                    min=self.perm_min, printt=self.print_bool)
+            # record the start time
             time1 = perf_counter()
 
-            x = perm.fit_transform(x, y)
+            # start exhaustive search to select clustering features by calling fit()
+            ex_selector.fit(x_clustering, y_target, x_input)  # transforms clustering features to the top choice
+
+            # record the end time and calculate elapsed time
             time2 = perf_counter()
+            elapsed = time2 - time1
+
+            # get the top clustering features from ex_selector
+            top_clustering_features = np.array(ex_selector.best_c_subsets["Clustering Features"])
+
+            # print some details
+            print("FPGAPredict: The clustering features were selected successfully")
+            print(
+                "FPGAPredict: ELAPSED TIME FOR SELECTING THE FEATURES IS: %.4f seconds.\nStart Time = %.4f seconds and End Time = %.4f seconds\n" % (
+                    elapsed, time1, time2))
+        else:
+            top_clustering_features = [x_clustering.columns.tolist()]
+
+        return top_clustering_features
+
+    '''
+    Description:
+    clusters the dataset and selects the prediction features for each cluster separately.
+    
+    parameters:
+        -x_input: a dataframe of the input features dataset.
+        -y_target: a dataframe of the target features dataset.
+        -x_clustering: a dataframe of the clustering features dataset.
+        -ex_search: a boolean, whether to perform exhaustive search or not.
+        -min_features: integer, the minimum features to try in exhaustive search.
+        -max_features: integer, the maximum features to try in exhaustive search.
+        -n: integer, the number of features to select (using PCC) and pass to exhaustive search.
+        -estimator_4each_cluster: A 2D list containing the estimator for each cluster. The length of the list must equal self.n_clusters.
+    
+    returns: 2D list with the features for each cluster
+        -features_4each_cluster: A 2D list containing the selected features subset for each cluster.
+                                 The length of the list equals self.n_clusters
+    '''
+    def select_prediction_features(self, x_input, y_target, x_clustering, ex_search=False, n=10, min_features=2,
+                                   max_features=None, estimator_4each_cluster=None):
+        print("FPGAPredict: Selecting the prediction features for each cluster ..")
+
+        if estimator_4each_cluster is None:
+            estimator_4each_cluster = [self.estimator for k in range(self.n_clusters)]
+
+        # get the clusters (input and target datasets and the benchmarks corresponding to each cluster)
+        x_4each_cluster, y_4each_cluster, benchmarks_4each_cluster = self.get_clusters(x_input, y_target, x_clustering)
+
+        # prepare an array of selected features
+        selected_features_4each_cluster = []
+
+        # the cluster label, incremented with every loop iteration
+        cluster = -1
+
+        for x_cluster, y_cluster in list(zip(x_4each_cluster, y_4each_cluster)):
+            cluster += 1
+
             if self.print_bool:
+                print("\nFPGAPredict: Processing cluster %d ...\n" % cluster)
+
+            # perform Exhaustive Search for prediction if ex_search=True
+            if ex_search:
+                ex_selector = ExhaustiveSearch(estimator=estimator_4each_cluster[cluster], n_splits=self.n_splits,
+                                        min=min_features, max=max_features,
+                                        printt=self.print_bool,
+                                        n=n, scaling=self.scaling,
+                                        parallel=self.parallel, n_cpu=self.n_cpu)
+
+                time1 = perf_counter()
+
+                x_cluster = ex_selector.fit_transform(x_cluster, y_cluster)
+                time2 = perf_counter()
                 print(
                     "FPGAPredict: Elapsed time for selecting the prediction features is %.4f seconds.\nStart time = %.4f seconds and End time = %.2f seconds\n" % (
                         time2 - time1, time1, time2))
-                print("FPGAPredict: Selecting the prediction features is complete. Min Error = %.2f\n" % perm.get_min_error())
+                print(
+                    "FPGAPredict: Selecting the prediction features is complete. Min Error = %.2f\n" % ex_selector.get_min_error())
+            selected_features_4each_cluster.append(x_cluster.columns.tolist())
 
-        self.features = x.columns
+        return selected_features_4each_cluster
 
-        numpy_x = x.copy().to_numpy()
-        numpy_y = y.copy().to_numpy()
-        numpy_x2 = x2.copy().to_numpy()
+    '''
+        Description:
+        Evaluate the overall model on the dataset provided, using the provided estimator and number of clusters (self.n_clusters).
 
-        # initialize variables to start KFold with n runs
-        summaries = []
-        all_errors_df = []
-        avg_total_training_error = 0
-        avg_total_testing_error = 0
+        parameters:
+            -x_input: a dataframe of the input features dataset.
+            -y_target: a dataframe of the target features dataset.
+            -x_clustering: a dataframe of the clustering features dataset.                
+            -with_clustering: whether to perform clustering and prediction together (i.e. whether to use ClusteringRegression model)
+            -estimator_4each_cluster: 2D list containing the estimator for each cluster. The length of this list must equal self.n_clusters
+            -features_4each_cluster: 2D list containing the input features names for each cluster. The length of this list must equal self.n_clusters
+            -random_state: integer or None, used for seeding the random generator of KFold. 
+                            If random state is an integer, do seeded shuffle for KFold.
+                            else, do true shuffle for KFold with random_state=None.
 
-        # always shuffle the dataset (seeded or true shuffle)
+        returns: A dictionary of the results that have the following keys:
+                -"results": this key stores a dictionary storing a list of dataframes of the results for each cluster (i.e. real and predicted values, average error, etc.)
+                -"stats": this key stores a dictionary storing a list of dataframes of some statistics summary for each cluster (i.e. total average error, stdev..etc.)
+                -"avg_training_error": this key stores a list of floats of the total average training errors of n_runs of kfold.
+                -"avg_testing_error": this key stores a list of floats of the total average testing error of n_runs kfold.
+                -"features_4each_cluster": this key stores the input parameter (features_4each_cluster) - see its definition above.
+                -"estimator_4_each_cluster": this key stores the input parameter(estimator_4each_cluster) - see its definition above.
+                -"overall_avg_error": this key stores a float, the overall average testing error over the n_runs.
+    '''
+    def evaluate_model(self, x_input, y_target, x_clustering, with_clustering=False, estimator_4each_cluster=None,
+                       features_4each_cluster=None, random_state=None):
+
+        # prepare the estimator and features for each cluster
+        if estimator_4each_cluster is None:
+            estimator_4each_cluster = [self.estimator for i in range(self.n_clusters)]
+        if features_4each_cluster is None:
+            features_4each_cluster = [self.features for i in range(self.n_clusters)]
+
+        # prepare the results dictioanry that will be returned
+        nruns_result_dict = {"results": {}, "stats": {}, "avg_training_error": {}, "avg_testing_error": {},
+               "features_4each_cluster": features_4each_cluster, "estimator_4each_cluster": estimator_4each_cluster,
+               "overall_avg_error": 0}
+
+
+        if with_clustering or self.n_clusters > 1:
+
+            x_4each_cluster, y_4each_cluster, benchmarks_4each_cluster = self.get_clusters(x_input, y_target,
+                                                                                           x_clustering)
+        else:
+            x_4each_cluster = [x_input]
+            y_4each_cluster = [y_target]
+            benchmarks_4each_cluster = [x_input.index.tolist()]
+        if with_clustering:
+            # prepare the estimator and features for each cluster
+            models = list(zip(estimator_4each_cluster, features_4each_cluster))
+            models = [list(model) for model in models]
+
+            # use ClusteringRegression as the new estimator
+            estimator = ClusteringRegression(estimators=models, clustering_features=x_clustering.columns.tolist(),
+                                             original_clusters=benchmarks_4each_cluster)
+
+            estimator_4each_cluster = [estimator]
+
+            # treat the whole dataset as one cluster (cluster in the training not on the whoel dataset)
+            n_clusters = 1
+        else:
+            n_clusters = self.n_clusters
+
+        # check whether to do true or seeded shuffle
+        if isinstance(random_state, int):
+            true_shuffle = False
+        else:
+            true_shuffle = True
+            random_state = None
+
+        # iterate through each cluster
+        for c in range(n_clusters):
+
+            # get the estimator, features, the input dataset, and target dataset for each cluster
+            if not with_clustering:
+                estimator = estimator_4each_cluster[c]
+                features = features_4each_cluster[c]
+                cluster_x_input = x_4each_cluster[c].copy()[features]
+                cluster_y_target = y_4each_cluster[c].copy()
+            else:
+                cluster_x_input = x_input.copy()
+                cluster_y_target = y_target.copy()
+
+            # prepare empty lists for these clusters before starting nruns
+            nruns_result_dict["results"][c] = []
+            nruns_result_dict["stats"][c] = []
+            nruns_result_dict["avg_testing_error"][c] = []
+            nruns_result_dict["avg_training_error"][c] = []
+
+            for p in range(self.n_runs):
+
+                # increment random state with every run if we are doing seeded shuffle
+                if not true_shuffle:
+                    random_state += 1
+
+                # do KFold
+                result_dict = self.kfold(cluster_x_input, cluster_y_target, x_clustering, estimator=estimator,
+                                         random_state=random_state, with_clustering=with_clustering,
+                                         print_bool=(self.print_bool and p == 0))
+                # append the results
+                nruns_result_dict["avg_testing_error"][c].append(result_dict["testing_error"])
+                nruns_result_dict["avg_training_error"][c].append(result_dict["training_error"])
+                nruns_result_dict["results"][c].append(result_dict["results"])
+                nruns_result_dict["stats"][c].append(result_dict["stats"])
+                nruns_result_dict["overall_avg_error"] += result_dict["testing_error"]
+
+            # calculate the overall average error
+            nruns_result_dict["overall_avg_error"] = nruns_result_dict["overall_avg_error"] / self.n_runs
+
+        nruns_result_dict["overall_avg_error"] = nruns_result_dict["overall_avg_error"] / n_clusters
+
+        return nruns_result_dict
+
+    '''
+        Description:
+        Perform KFold one time on the dataset provided and using the provided estimator.
+        
+        parameters:
+            -x_input: a dataframe of the input features dataset.
+            -y_target: a dataframe of the target features dataset.
+            -x_clustering: a dataframe of the clustering features dataset.
+            -estimator: the estimator to be used to train and predict the target metrics.
+            -random_state: integer or None, used for seeding the random generator of KFold. 
+                            If random_state=None, do true shuffle for KFold.
+                            If random state is an integer, do seeded shuffle for KFold.
+            -with_clustering: whether to perform clustering and prediction together (i.e. whether to use ClusteringRegression model)
+            -print_bool: whether to print some statistics while doing KFold.
+    
+        returns: A dictionary of the results that have the following keys:
+                -"results": this key stores a dataframe of the results (i.e. real and predicted values, average error, etc.)
+                -"stats": this key stores a dataframe of some statistics summary (i.e. total average error, stdev..etc.)
+                -"testing_error": this key stores a float, the total average error of kfold.
+    '''
+    def kfold(self, x_input, y_target, x_clustering, estimator, random_state=None, with_clustering=False,
+              print_bool=True):
+
+        # save features names and benchmarks names
+        features_names = np.array(x_input.columns)
+        clustering_features_names = np.array(x_clustering.columns)
+        benchmarks_names = np.array(x_input.index)
+        target_name = np.array(y_target.columns)
+
+        # initialize KFold
         shuffle = True
 
-        # check whether to do true shuffle or seeded shuffle
-        if self.true_shuffle:
-            random_state = None
+        # use EqualGroupsKFold with clustering regression (to have equal benchmarks from each cluster in the
+        # testing/training)
+        if with_clustering:
+            kfold = EqualGroupsKFold(n_splits=self.n_splits, shuffle=shuffle, random_state=random_state,
+                                     features=clustering_features_names, n_clusters=self.n_clusters)
         else:
-            random_state = self.random_state
-
-        # find the original clusters if the estimator is ClusteringRegression
-        if self.estimator.__class__.__name__ == "ClusteringRegression":
-            kmeans = KMeans(n_clusters=self.n_clusters, random_state=42)
-            # find the original clusters
-            c_x = StandardScaler().fit_transform(x2)
-            kmeans.fit(c_x)
-            labels = kmeans.labels_
-            original_clusters = {}  # dictionary of the clusters
-            benchmarks = x2.index.tolist()
-
-            for i in range(len(list(labels))):
-                try:
-                    original_clusters[labels[i]].append(benchmarks[i])
-                except KeyError:
-                    original_clusters[labels[i]] = [benchmarks[i]]
-            self.estimator.set_parameters(original_clusters=original_clusters)
-
-        # start 50 runs
-        for p in range(self.n_runs):
-
-            if not self.true_shuffle:  # increment random state if seeded shuffle
-                random_state += 1
-
-            # use EqualGroupsKFold with clustering regression (to have equal benchmarks from each cluster in the testing/training)
-            if self.estimator.__class__.__name__ == "ClusteringRegression":
-                kfold = EqualGroupsKFold(n_splits=self.n_splits, shuffle=shuffle, random_state=random_state,
-                                         features=self.clustering_features, n_clusters=self.n_clusters)
+            if len(x_input) < self.n_splits:
+                n_splits = len(x_input)
+                print("FPGAPredict: The number of splits was modified to become %d" % n_splits)
             else:
-                if len(x) < self.n_splits:
-                    n_splits = len(x)
-                    if self.print_bool:
-                        print("FPGAPredict: The number of splits was modified to become %d" % n_splits)
+                n_splits = self.n_splits
+            kfold = KFold(n_splits=n_splits, shuffle=shuffle,
+                          random_state=random_state)
+
+        # prepare variables to start KFold
+        benchmarks = []  # it has the name of the benchmarks
+        results = []  # it has features, fold, real, predicted, error, estimator, equation
+        all_errors = []  # it has the error of all benchmarks
+        all_testy = []  # it has all tested real target
+        all_predy = []  # it has all tested predicted target
+        split = []  # it has the current split
+        fold = -1  # it has the number of the fold
+        training_errors = []  # it has the training error of all benchmarks
+
+        # start KFold
+        for train0, test0 in kfold.split(x_input, y_target):
+            fold += 1
+            train_x, test_x = x_input.iloc[train0], x_input.iloc[test0]
+            train_y, test_y = y_target.iloc[train0], y_target.iloc[test0]
+            train_x2, test_x2 = x_clustering.iloc[train0], x_clustering.iloc[test0]
+            n_testing_benchmarks = len(test_x.index.tolist())
+            test_x_before_scaling = np.array(test_x)
+
+            # scale the training and testing data
+            if self.scaling != 0 and not with_clustering:
+                if self.scaling == 1 and not estimator.__class__.__name__ == "ExponentialRegression":
+                    if print_bool:
+                        print("FPGAPredict: standard scaling will be performed on the input features\n")
+                    scaler = StandardScaler()
                 else:
-                    n_splits = self.n_splits
-                kfold = KFold(n_splits=n_splits, shuffle=shuffle,
-                              random_state=random_state)
+                    if print_bool:
+                        print("FPGAPredict: Min Max scaling will be performed on the input features\n")
+                    scaler = MinMaxScaler(feature_range=(10, 11))
 
-            # prepare variables to start KFold
-            benchmarks = []  # it has the name of the benchmarks
-            results = []  # it has features, fold, real, predicted, error, estimator, equation
-            all_errors = []  # it has the error of all benchmarks
-            all_testy = []  # it has all tested real target
-            all_predy = []  # it has all tested predicted target
-            split = []  # it has the current split
-            fold = -1  # it has the number of the fold
-            training_errors = []  # it has the training error of all benchmarks
+                train_x = scaler.fit_transform(train_x, train_y)
+                test_x = scaler.transform(test_x)
 
-            # start KFold
-            for train0, test0 in kfold.split(x, y):
-                fold += 1
-                train_x, test_x = numpy_x[train0], numpy_x[test0]
-                train_y, test_y = numpy_y[train0], numpy_y[test0]
-                train_x2, test_x2 = numpy_x2[train0], numpy_x2[test0]
-                test_x_before_scaling = np.copy(test_x)
+            # append the benchmarks names in the testing
+            benchmarks += list(benchmarks_names[test0])
 
-                # scale the training and testing data
-                if self.scaling != 0 and self.estimator.__class__.__name__ != "ClusteringRegression":
-                    if self.scaling == 1 and self.estimator.__class__.__name__ != "ExponentialRegression":
-                        if self.print_bool and p < 10:
-                            print("FPGAPredict: standard scaling will be performed on the input features\n")
-                        scaler = StandardScaler()
-                    else:
-                        if self.print_bool and p < 10:
-                            print("FPGAPredict: Min Max scaling will be performed on the input features\n")
-                        scaler = MinMaxScaler(feature_range=(10, 11))
+            # append the split (benchmarks names of the split)
+            split.append((benchmarks_names[train0], benchmarks_names[train0]))
 
-                    train_x = scaler.fit_transform(train_x, train_y)
-                    test_x = scaler.transform(test_x)
+            # create a copy of the estimator and fit it
+            estimator = copy(estimator)
+            time1 = perf_counter()
 
-                # convert back to pandas dataframes
-                train_x = pd.DataFrame(train_x, columns=self.features, index=x.index[train0])
-                train_y = pd.DataFrame(train_y, columns=self.target_name, index=x.index[train0])
-                test_x = pd.DataFrame(test_x, columns=self.features, index=x.index[test0])
-
-                # append the benchmarks names in the testing
-                benchmarks += x.index[test0].tolist()
-
-                # append the split (benchmarks names of the split)
-                split.append((x.index[train0].tolist(), x.index[test0].tolist()))
-
-                # create a copy of the estimator and fit it
-                self.estimator = copy(self.estimator)
-                time1 = perf_counter()
-                if self.estimator.__class__.__name__ == "ClusteringRegression":
-                    train_x2 = pd.DataFrame(train_x2, columns=c_features, index=x.index[train0])
-                    self.estimator.fit(train_x, train_y, train_x2)
-                else:
-                    self.estimator.fit(train_x, train_y)
-                time2 = perf_counter()
-                elapsed1 = time2 - time1
-                if self.estimator.__class__.__name__ == "ClusteringRegression":
-                    train_pred = np.array(self.estimator.predict(train_x, train_x2))
-                else:
-                    train_pred = np.array(self.estimator.predict(train_x))
-                training_error = np.abs(
-                    np.divide(train_pred.flatten() - np.array(train_y).flatten(), np.array(train_y).flatten())) * 100
-                if self.print_bool and p < 10:
-                    print("FPGAPredict: the training error of this split is %s\n" % (training_error))
-                training_errors = training_errors + list(training_error)
-                time3 = perf_counter()
-                if self.estimator.__class__.__name__ == "ClusteringRegression":
-                    test_x2 = pd.DataFrame(test_x2, columns=c_features, index=x.index[test0])
-                    pred_y = self.estimator.predict(test_x, test_x2)
-                else:
-                    pred_y = self.estimator.predict(test_x)
-                time4 = perf_counter()
-                elapsed2 = time4 - time3
-
-                # print timing
-                if self.print_bool and p < 10:
-                    print("The training time for fold %d = %.4f Seconds\nTesting time for fold %d = %.4f Seconds\n" % (
-                        fold, elapsed1, fold, elapsed2))
-                all_predy += list(pred_y.flatten())
-                all_testy += list(test_y.flatten())
-                pred_y = pred_y.flatten()
-                test_y = test_y.flatten()
-                errors = np.abs(np.divide((pred_y - test_y), test_y) * 100)
-                all_errors += errors.tolist()
-
-                test_y = test_y.flatten()
-                pred_y = pred_y.flatten()
-                errors = errors.flatten()
-
-                # prepare a results list with the input features, target features, fold, error, cluster, estimator..etc
-                if self.estimator.__class__.__name__ == "ClusteringRegression":
-                    b = self.estimator.coef_
-                    a = self.estimator.intercept_
-                    equation = 1
-
-                    features = self.estimator.features
-                    clusters = self.estimator.clusters
-                    estimators = self.estimator.estimators_pred
-
-                    if a is not None and b is not None:
-                        equations = [get_equation(a[i], b[i], features[i]) for i in range(errors.shape[0])]
-
-                        result = list(
-                            zip([fold for i in range(errors.shape[0])],
-                                test_y, pred_y, errors,
-                                estimators, clusters,
-                                equations))
-                    else:
-                        equation = None
-                        result = list(
-                            zip([fold for i in range(errors.shape[0])],
-                                test_y, pred_y, errors,
-                                estimators, clusters))
-
-                elif self.estimator.__class__.__name__ == "LinearRegression" or self.estimator.__class__.__name__ == "ExponentialRegression":
-                    clusters = None
-                    b = self.estimator.coef_
-                    a = self.estimator.intercept_
-                    if b is not None:
-                        equation = get_equation(a, b, self.features)
-                        result = list(
-                            zip([fold for i in range(errors.shape[0])], test_y, pred_y, errors,
-                                [self.estimator.__class__.__name__ for i in range(errors.shape[0])],
-                                [equation for i in range(errors.shape[0])]))
-                    else:
-                        clusters = None
-                        equation = None
-                        result = list(
-                            zip([fold for i in range(errors.shape[0])], test_y, pred_y, errors,
-                                [self.estimator.__class__.__name__ for i in range(errors.shape[0])]))
-                else:
-                    clusters = None
-                    equation = None
-                    result = list(
-                        zip([fold for i in range(errors.shape[0])], test_y, pred_y, errors,
-                            [self.estimator.__class__.__name__ for i in range(errors.shape[0])]))
-                if not self.estimator.__class__.__name__ == "ClusteringRegression":
-                    for g in range(len(result)):
-                        result[g] = test_x_before_scaling[g].tolist() + list(result[g])
-
-                results += result
-
-            if not self.estimator.__class__.__name__ == "ClusteringRegression":
-                columns = list(self.features) + ["fold"]
+            if with_clustering:
+                estimator.fit(train_x, train_y, train_x2)
             else:
-                columns = ["fold"]
-            for target in self.target_name:
-                columns += ["Real " + str(target), "Predicted " + str(target)]
-                self.target = target
-            columns += ["Average Error (%)", "Estimator"]
-            if clusters is not None:
-                columns += ["Cluster"]
-            if equation is not None:
-                columns += ["Equation"]
+                estimator.fit(train_x, train_y)
 
-            results_df = pd.DataFrame(results, index=benchmarks, columns=columns)
-            n = len(all_predy)
-            all_predy = np.array(all_predy)
-            all_testy = np.array(all_testy)
-            RRMSE = np.sqrt((1 / n
-                             * np.sum(np.power(np.divide(all_predy - all_testy, all_testy), 2))))
+            time2 = perf_counter()
+            elapsed1 = time2 - time1
+            if with_clustering:
+                train_pred = np.array(estimator.predict(train_x, train_x2))
+            else:
+                train_pred = np.array(estimator.predict(train_x))
+            training_error = np.abs(
+                np.divide(train_pred.flatten() - np.array(train_y).flatten(), np.array(train_y).flatten())) * 100
+            if print_bool:
+                print("FPGAPredict: the training error of this split is %s\n" % (training_error))
+            training_errors = training_errors + list(training_error)
+            time3 = perf_counter()
+            if with_clustering:
+                pred_y = estimator.predict(test_x, test_x2)
+                features = estimator.features
 
-            avg_training_error = np.mean(np.abs(training_errors))
-            avg_total_training_error += avg_training_error
-            avg_total_testing_error += np.mean(all_errors)
-            errors_arr = [[np.mean(all_errors), np.std(all_errors), RRMSE]]
-            errors_df = pd.DataFrame(errors_arr, columns=["Average Error (%)", "STDEV Error", "RRMSE (%)"],
-                                     index=["Summary: "])
+            else:
+                pred_y = estimator.predict(test_x)
+            time4 = perf_counter()
+            elapsed2 = time4 - time3
 
-            all_errors_df.append(errors_df)  # append all error rates for each run
-            summaries.append(results_df)  # append results for each run
+            # print timing
+            if print_bool:
+                print("The training time for fold %d = %.4f Seconds\nTesting time for fold %d = %.4f Seconds\n" % (
+                    fold, elapsed1, fold, elapsed2))
 
-            if self.print_bool and p < 10:
-                print()
-                print("----------- Result for the run No. %d of this cluster -----------\n" % (p))
-                print("Passed features -> " + str(list(self.features)))
-                print()
-                print(results_df.to_string())
-                print()
-                print(errors_df.to_string())
-                print("-------------------------------------------")
-                print()
-        avg_total_training_error = avg_total_training_error / self.n_runs
-        avg_total_testing_error = avg_total_testing_error / self.n_runs
-        self.error = avg_total_testing_error
-        self.args = {"features": self.features, "results": summaries, "split": None, "errors": all_errors_df,
-                     "avg_training_error": avg_total_training_error}
+            pred_y = np.array(pred_y).flatten()
+            test_y = np.array(test_y).flatten()
 
-        return self.args
+            all_predy += list(pred_y)
+            all_testy += list(test_y)
+
+            errors = np.abs(np.divide((pred_y - test_y), test_y) * 100)
+            all_errors += errors.tolist()
+            errors = errors.flatten()
+
+            result = list(zip([fold for i in range(errors.shape[0])],
+                              test_y, pred_y, errors))
+            result_columns = ["fold", "Real " + str(target_name[0]), "Predicted " + str(target_name[0]),
+                              "Average Error (%)"]
+
+            if with_clustering:
+                clusters = estimator.clusters
+                features = estimator.features
+                predicted_estimators = estimator.estimators_pred
+                for g in range(len(result)):
+                    result[g] = list(result[g]) + [clusters[g]]
+                    result[g] = list(result[g]) + [predicted_estimators[g]]
+                result_columns += ["Cluster", "Estimator"]
+            else:
+                features = [features_names for o in range(n_testing_benchmarks)]
+            # try to get the estimator coefs if it is Linear or Exponential
+            try:
+                b = estimator.coef_
+                a = estimator.intercept_
+                if not with_clustering:
+                    a = [a for i in range(n_testing_benchmarks)]
+                    b = [b for i in range(n_testing_benchmarks)]
+
+                equations = [get_equation(a[i], b[i], features[i]) for i in range(n_testing_benchmarks)]
+                for g in range(len(result)):
+                    result[g] = list(result[g]) + [equations[g]]
+
+                result_columns += ["Equation"]
+            except AttributeError:
+                a = None
+
+            if not with_clustering:
+                for g in range(len(result)):
+                    result[g] = test_x_before_scaling[g].tolist() \
+                                + list(result[g])
+                result_columns = list(features_names) + result_columns
+
+            results += result
+
+        results_df = pd.DataFrame(results, index=benchmarks, columns=result_columns)
+        n = len(all_predy)
+        all_predy = np.array(all_predy)
+        all_testy = np.array(all_testy)
+        RRMSE = np.sqrt((1 / n
+                         * np.sum(np.power(np.divide(all_predy - all_testy, all_testy), 2))))
+
+        avg_training_error = np.mean(np.abs(training_errors))
+        stats_arr = [[np.mean(all_errors), np.std(all_errors), RRMSE]]
+        stats_df = pd.DataFrame(stats_arr, columns=["Average Error (%)", "STDEV Error", "RRMSE (%)"],
+                                index=["Summary: "])
+
+        return {"results": results_df, "stats": stats_df, "training_error": avg_training_error,
+                "testing_error": np.mean(all_errors)}
+
+    # returns a 2D x and y corresponding to each cluster
+    def get_clusters(self, x_input, y_target, x_clustering):
+        time1 = perf_counter()
+
+        # initialize kmeans
+        kmeans = KMeans(n_clusters=self.n_clusters, random_state=42)
+
+        # perform standard scaling on the clustering features
+        x_clustering = StandardScaler().fit_transform(x_clustering)
+
+        # perform clustering on the scaled dataset
+        kmeans.fit(x_clustering, y_target)
+
+        # get kmeans labels and separate each cluster
+        labels = np.array(kmeans.labels_)  # np.array(labels)
+        time2 = perf_counter()
+        if self.print_bool:
+            print("FPGAPredict: Elapsed Time for Clustering is %.4f seconds\n" % (time2 - time1))
+
+        x_4each_cluster = []
+        y_4each_cluster = []
+        benchmarks_4each_cluster = []
+        # get each cluster
+        for c in range(self.n_clusters):
+            # find the indices of this cluster
+            cluster_indices = np.array(np.where(labels == c))[0]
+
+            # get the input features for this cluster
+            cluster_x = x_input.iloc[cluster_indices]
+            cluster_y = y_target.iloc[cluster_indices]
+
+            x_4each_cluster.append(cluster_x)
+            y_4each_cluster.append(cluster_y)
+            benchmarks_4each_cluster.append(cluster_x.index.tolist())
+        return x_4each_cluster, y_4each_cluster, benchmarks_4each_cluster
 
     '''
-    gets the average error of n runs. Use this function only after a previous call to fit() or select_predict()
+    Description:
+        stores the nruns_result_dict from evaluate_model into excel file.
+        It stores the average of nruns overall each benchmark.
+        Then it stores the estimator, features, and errors of each benchmarks.
+        Then it stores the average of average errors, standard deviation, and RRMSE of the nruns.
+        Finally it stores up to 10 example runs out of the total nruns. 
     '''
+    def store_output(self, nruns_result_dict, sheet_name=None, excelname1=None, excelname2=None, mode='w', with_clustering=False):
 
-    def get_avg_error(self):
-        return self.error
+        # prepare names for the output file and sheet
 
-    '''
-    store the output using an argument array (result from fit())
-    all_args: a dictionary that contains two keys: results and errors. Each key contains a list for the output of each cluster, each output contains results (as an array) for n runs.
-    n_clusters: the number of clusters.
-    excelname1: the name of the first excel file.
-    excelname2: the name of the second excel file
-    sheet_name: name of the sheet.
-    mode: whether to write or append. 
-    '''
-
-    def store_output(self, all_args, n_clusters=None, excelname1=None, excelname2=None, sheet_name=None, mode='w'):
-
-        if n_clusters is None:
-            n_clusters = self.n_clusters
         if sheet_name is None:
             sheet_name = "Summary of " + str(self.n_runs) + " Runs"
 
         if excelname1 is None or (not isinstance(excelname1, str)) or (excelname2 is None) or (
                 not isinstance(excelname2, str)):
-            # dd/mm/YY
-            today = date.today()
-
             board_name = self.excelname.split("_")[0]
             _name = str(self.estimator.__class__.__name__) + "_" + str(board_name) + "_c" + str(self.n_clusters) + "_"
 
@@ -657,6 +562,7 @@ class FPGAPredict:
         else:
             result_name2 = excelname2
 
+        # initialize excel files
         if mode == 'a':
             writer1 = pd.ExcelWriter(result_name1, mode=mode, if_sheet_exists='overlay', engine="openpyxl")
             writer2 = pd.ExcelWriter(result_name2, mode=mode, if_sheet_exists='overlay', engine="openpyxl")
@@ -664,123 +570,177 @@ class FPGAPredict:
             writer1 = pd.ExcelWriter(result_name1, engine="openpyxl")
             writer2 = pd.ExcelWriter(result_name2, engine="openpyxl")
 
-        row = 0
-        errors = []  # average error of each cluster
-        features = []
-        if self.estimator.__class__.__name__ == "ClusteringRegression" or self.clusters_features is not None:
-            features = self.clusters_features
-        labels = []
-        labels2 = ["cluster " + str(i) + " Features" for i in range(n_clusters)]
-        if n_clusters > 1:
-            labels2.append("clustering features")
-        all_summaries = []
-
-        if self.n_runs < 10:
-            J = self.n_runs
+        if with_clustering:
+            n_clusters = 1
         else:
-            J = 10
-        for cluster in range(len(all_args["results"])):
-            summaries_avg = pd.concat(all_args["results"][cluster]).groupby(level=0).mean()
-            if self.estimator.__class__.__name__ == "ClusteringRegression":
-                summaries_avg = summaries_avg[
-                    ["Real " + str(self.target), "Predicted " + str(self.target), "Average Error (%)", "Cluster"]]
-                errors = []
-                labels = []
-                for c in range(n_clusters):
-                    summaries_avg_c = summaries_avg[summaries_avg["Cluster"] == c]
-                    errors.append(summaries_avg_c["Average Error (%)"].mean())
-                    labels.append("cluster " + str(c) + " Avg Error(%)")
+            n_clusters = self.n_clusters
+        # we need to store up to 10 results from ret.
+        # we also need to store the average 50 runs
+
+        # compute the error for each cluster
+        error_4each_cluster = []
+        error_label_4each_cluster = []
+        feature_label_4each_cluster = []
+        estimators_label_4each_cluster = []
+        summary_4each_cluster = []
+        stats_4each_cluster = []
+        for c in range(n_clusters):
+
+            results_n_runs = pd.concat(nruns_result_dict["results"][c])
+            avg_n_runs = results_n_runs.groupby(level=0).mean()
+            if with_clustering:
+                avg_n_runs = avg_n_runs[["Real " + str(self.target_name[0]), "Predicted " + str(self.target_name[0]),
+                                         "Average Error (%)", "Cluster"]]
             else:
-                summaries_avg = summaries_avg[
-                    ["Real " + str(self.target), "Predicted " + str(self.target), "Average Error (%)"]]
+                avg_n_runs = avg_n_runs[["Real " + str(self.target_name[0]), "Predicted " + str(self.target_name[0]),
+                                         "Average Error (%)"]]
+            std_n_runs = results_n_runs[["Average Error (%)"]].groupby(level=0).std()
+            std_n_runs = std_n_runs.rename(columns={"Average Error (%)": "STD of Error"})
+            summary_n_runs = pd.concat([avg_n_runs, std_n_runs["STD of Error"]], axis=1)
+            stats_n_runs = pd.concat(nruns_result_dict["stats"][c]).groupby(level=0).mean()
+            stats_4each_cluster.append(stats_n_runs)
+            summary_4each_cluster.append(summary_n_runs)
 
-            summaries_std = pd.concat(all_args["results"][cluster]).groupby(level=0).std()
+            if with_clustering:
+                for c in range(self.n_clusters):
+                    try:
+                        summary_avg_c = summary_n_runs[summary_n_runs["Cluster"] == c]
+                        error_4each_cluster.append(summary_avg_c["Average Error (%)"].mean())
+                    except KeyError:
+                        error_4each_cluster.append(np.NaN)
+                    error_label_4each_cluster.append("cluster " + str(c) + " Avg Error(%)")
+                    feature_label_4each_cluster.append("Cluster {} Features".format(c))
+                    estimators_label_4each_cluster.append("Cluster {} Estimator".format(c))
+            else:
+                error_4each_cluster.append(np.mean(nruns_result_dict["avg_testing_error"][c]))
+                error_label_4each_cluster.append("Cluster {} Error (%)".format(c))
+                feature_label_4each_cluster.append("Cluster {} Features".format(c))
+                estimators_label_4each_cluster.append("Cluster {} Estimator".format(c))
+        results_n_runs = pd.concat(summary_4each_cluster)
 
-            summaries_std = summaries_std.rename(columns={"Average Error (%)": "STD of Error"})
+        # stats dataframe has the overall avg error, average stdev of errors, and overall RMSE
+        stats = pd.concat(stats_4each_cluster).groupby(level=0).mean()
 
-            summaries_avg = pd.concat([summaries_avg, summaries_std["STD of Error"]], axis=1)
-            all_summaries.append(summaries_avg)
-            avg_error = summaries_avg["Average Error (%)"].mean()
-            if self.estimator.__class__.__name__ != "ClusteringRegression":
-                errors.append(avg_error)
-                labels.append("cluster " + str(cluster) + " Avg Error(%)")
-            if self.estimator.__class__.__name__ != "ClusteringRegression" and self.clusters_features is None:
-                features.append(list(all_args["features"][cluster]))
+        # features dataframe has the features for each cluster
+        features = pd.DataFrame([nruns_result_dict["features_4each_cluster"][:self.n_clusters]],
+                                columns=feature_label_4each_cluster[:self.n_clusters],
+                                index=[nruns_result_dict["estimator_4each_cluster"][0].__class__.__name__])
 
-        clusters_features = list(features)
-        if n_clusters > 1 and self.estimator.__class__.__name__ != "ClusteringRegression":
-            features.append(self.clustering_features)
+        # estimators dataframe has the estimator for each cluster
+        estimators = pd.DataFrame([nruns_result_dict["estimator_4each_cluster"][:self.n_clusters]],
+                                  columns=estimators_label_4each_cluster[:self.n_clusters],
+                                  index=["Summary: "])
 
-        estimator_name = self.estimator.__class__.__name__
-        if estimator_name == "ClusteringRegression":
-            estimator_name = self.estimator.estimators[0][0].__class__.__name__
+        # errors dataframe has the error for each cluster
+        errors = pd.DataFrame([error_4each_cluster], columns=error_label_4each_cluster)
 
-        features = pd.DataFrame([features], columns=labels2, index=[estimator_name])
-        errors = pd.DataFrame([errors], columns=labels, index=[""])
-        results = pd.concat(all_summaries)
-        n = len(results.index.tolist())
-        all_predy = results["Predicted " + str(self.target)].to_numpy()
-        all_testy = results["Real " + str(self.target)].to_numpy()
+        # generate a plot of the benchmarks against the average error
+        plt.figure()
+        plt.bar(results_n_runs.index.tolist(), np.array(results_n_runs[["Average Error (%)"]]).flatten())
+        plt.xticks(rotation=90)
+        plt.xlabel("Benchmarks")
+        plt.ylabel("Average {} Runs Error (%)".format(self.n_runs))
 
-        RRMSE = np.sqrt((1 / n
-                         * np.sum(np.power(np.divide(all_predy - all_testy, all_testy), 2))))
+        # adjust the plot size
+        SMALL_SIZE = 12
+        MEDIUM_SIZE = 16
+        BIGGER_SIZE = 18
 
-        avg_error = results["Average Error (%)"].mean()
-        std_error = results["Average Error (%)"].std()
-        stats = [[avg_error, std_error, RRMSE]]
-        stats = pd.DataFrame(stats, columns=["Average " + str(self.n_runs) + " Runs Error (%)", "STD of Avg Errors",
-                                             "RRMSE"], index=["Summary:"])
-        results = results.sort_index()
-        self.results = results
-        results.to_excel(writer1, startrow=row, sheet_name=sheet_name,
-                         index_label="Summary of {} runs".format(self.n_runs))
-        results.to_excel(writer2, startrow=row, sheet_name=sheet_name,
-                         index_label="Summary of {} runs".format(self.n_runs))
-        row += n + 2
+        plt.rc('font', size=SMALL_SIZE)  # controls default text sizes
+        plt.rc('axes', titlesize=MEDIUM_SIZE)  # fontsize of the axes title
+        plt.rc('axes', labelsize=BIGGER_SIZE)  # fontsize of the x and y labels
+        plt.rc('xtick', labelsize=MEDIUM_SIZE)  # fontsize of the tick labels
+        plt.rc('ytick', labelsize=MEDIUM_SIZE)  # fontsize of the tick labels
+        plt.rc('legend', fontsize=SMALL_SIZE)  # legend fontsize
+        plt.rc('figure', titlesize=BIGGER_SIZE)  # fontsize of the figure title
+        plt.tight_layout()
+
+        # save the plot locally
+        plt.savefig("summary.png")
+        img = openpyxl.drawing.image.Image('summary.png')
+        img.anchor = "I1"
+        # initialize the row and column indices of the excel file
+        row = 0
         column = 0
-        features.to_excel(writer1, startrow=row, sheet_name=sheet_name, startcol=column)
-        features.to_excel(writer2, startrow=row, sheet_name=sheet_name, startcol=column)
+
+        # store the results_n_runs first
+        results_n_runs = results_n_runs.sort_index()
+        results_n_runs.to_excel(writer1, startrow=row, sheet_name=sheet_name, startcol=column)
+        results_n_runs.to_excel(writer2, startrow=row, sheet_name=sheet_name, startcol=column)
+
+        # store the plot
+        worksheet1 = writer1.sheets[sheet_name]
+        worksheet1.add_image(img)
+        worksheet2 = writer2.sheets[sheet_name]
+        worksheet2.add_image(img)
+        row = row + len(results_n_runs.index.tolist()) + 2
+
+        # store the estimators
+        estimators.to_excel(writer1, startrow=row, sheet_name=sheet_name, startcol=column)
+        estimators.to_excel(writer2, startrow=row, sheet_name=sheet_name, startcol=column)
+        column += len(estimators.columns.tolist()) + 2
+
+        # store the features
+        features.to_excel(writer1, startrow=row, sheet_name=sheet_name, startcol=column, index=False)
+        features.to_excel(writer2, startrow=row, sheet_name=sheet_name, startcol=column, index=False)
         column += len(features.columns.tolist()) + 1
 
-        errors.to_excel(writer1, startrow=row, sheet_name=sheet_name, startcol=column)
-        errors.to_excel(writer2, startrow=row, sheet_name=sheet_name, startcol=column)
+        # store the errors
+        errors.to_excel(writer1, startrow=row, sheet_name=sheet_name, startcol=column, index=False)
+        errors.to_excel(writer2, startrow=row, sheet_name=sheet_name, startcol=column, index=False)
         column += len(errors.columns.tolist()) + 1
-        stats.to_excel(writer1, startrow=row, sheet_name=sheet_name, startcol=column)
-        stats.to_excel(writer2, startrow=row, sheet_name=sheet_name, startcol=column)
-        row = row + 4
-        for run in range(J):
 
-            for cluster in range(len(all_args["results"])):
-                all_args["results"][cluster][run].to_excel(writer1, startrow=row, sheet_name=sheet_name,
-                                                           index_label="cluster " + str(cluster))
-                all_args["results"][cluster][run].to_excel(writer2, startrow=row, sheet_name=sheet_name,
-                                                           index_label="cluster " + str(cluster))
-                row += len(all_args["results"][cluster][run].index.tolist()) + 2
-                all_args["errors"][cluster][run].to_excel(writer1, startrow=row, sheet_name=sheet_name,
-                                                          index_label="cluster " + str(cluster))
-                all_args["errors"][cluster][run].to_excel(writer2, startrow=row, sheet_name=sheet_name,
-                                                          index_label="cluster " + str(cluster))
-                row += len(all_args["errors"][cluster][run].index.tolist()) + 2
-            row += 2
-        if self.print_bool:
-            print("\n*********** FPGAPredict: Summary of %d runs ***********\n" % self.n_runs)
-            print(stats.to_string())
-            print()
-            print("Estimator and features used:\n")
-            print(features.to_string())
-            print()
-            print("Average Error(s) for Each Cluster:")
-            print(errors.to_string())
-            print()
+        # store the stats
+        stats.to_excel(writer1, startrow=row, sheet_name=sheet_name, startcol=column, index=False)
+        stats.to_excel(writer2, startrow=row, sheet_name=sheet_name, startcol=column, index=False)
+        column = 0
+        row = row + 3
 
-
+        # now store up to 10 results separately of the n_runs
+        for j in range(self.n_runs):
+            if j > 10:
+                break
+            for c in range(n_clusters):
+                result = nruns_result_dict["results"][c][j]
+                result.to_excel(writer1, startrow=row, sheet_name=sheet_name, startcol=column,
+                                index_label="Cluster {}".format(c))
+                row = row + len(result.index.tolist()) + 2
+                stat = nruns_result_dict["stats"][c][j]
+                stat.to_excel(writer1, startrow=row, sheet_name=sheet_name, startcol=column,
+                              index_label="Cluster {}".format(c))
+                row = row + len(stat.index.tolist()) + 2
+            row = row + 1
 
         writer1.save()
         writer2.save()
+        print("FPGAPredict: output file was saved as \"%s\"" % result_name1)
 
-        print("FPGAPredict: Results were saved in more detail as %s" % result_name1)
+        return result_name1, result_name2, results_n_runs
 
-        return result_name1, result_name2, clusters_features
+    '''
+    Description:
+        This function prints up to 10 results of the n_runs in the all_result_dict parameter.
+    '''
+    def print_result(self, nruns_result_dict, with_clustering=False):
+        if with_clustering:
+            n_clusters = 1
+        else:
+            n_clusters = self.n_clusters
+        for j in range(self.n_runs):
+            if j > 10:
+                break
+            for c in range(n_clusters):
+                print("cluster {}:\n".format(c))
+                result = nruns_result_dict["results"][c][j]
+                print(result.to_string())
+                stat = nruns_result_dict["stats"][c][j]
+                print(stat.to_string())
+                print("\n")
+
+            print("\n")
+
+    def plot_show(self):
+        plt.show()
 
 
 '''
