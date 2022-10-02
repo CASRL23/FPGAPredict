@@ -64,8 +64,8 @@ if __name__ == "__main__":
     result_4each_clustering_subset = []
 
     # iterate through the top 2 clustering features
-    for (index, clustering_features) in enumerate(top_clustering_features):
-        if index > 1:  # only go over the first two top clustering features
+    for (count, clustering_features) in enumerate(top_clustering_features):
+        if count > 1:  # only go over the first two top clustering features
             break
         print("\n-----------------------------------------------------\n**main.py: Running an experiment with the "
               "clustering features %s\n-----------------------------------------------------\n" %clustering_features)
@@ -180,12 +180,15 @@ if __name__ == "__main__":
 
         if test_df.equals(real_df):
             print("\n--------------------\nRegression Test PASSED!\n")
+            # plot all results
+            fpga_pred.plot_show()
+            exit(0)
         else:
             print("\n--------------------\nRegression Test FAILED!\n")
             print("\nThe correct output dataframe is: \n\n%s\n\nBut the current outptu dataframe is: \n\n%s\n" % (
                 real_df.to_string(), test_df.to_string()))
             diff = pd.concat([real_df, test_df]).drop_duplicates(keep=False)
             print("\nThe difference between the two dataframes are in the following:\n\n%s\n\n" % (diff.to_string()))
-
-    # plot all results
-    fpga_pred.plot_show()
+            # plot all results
+            fpga_pred.plot_show()
+            exit(1)
