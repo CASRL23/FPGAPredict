@@ -104,3 +104,7 @@ For example,
 	python3 main.py excelname=arria10_features.xlsx estimator="Linear" n_clusters=2 target_metric="Clock Period" random_state=0 prediction_n=22 prediction_ex_search=True prediction_min_features=2 prediction_max_features=None clustering_n=50 clustering_ex_search=True clustering_min_features=1 clustering_max_features=None &><filename> &
 
 This command will find the clustering features and prediction features to predict the clock period on Arria 10 with 2 clusters and with linear regression.
+
+## Code Flow
+
+![alt text] (
