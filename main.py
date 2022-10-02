@@ -1,6 +1,6 @@
 from estimators import *
 import sys
-from ML import FPGAPredict
+from new_ML import FPGAPredict
 import warnings
 
 warnings.filterwarnings("ignore")
@@ -80,7 +80,7 @@ if __name__ == "__main__":
 
         # find x and y for each cluste rusing get_clusters and pass them to validate_model
         # validate the model with the seeded shuffle
-        print("**main.py: evaluating the model for each cluster separately and with seeded shuffle")
+        print("\n**main.py: evaluating the model for each cluster separately and with seeded shuffle\n")
         ret = fpga_pred.evaluate_model(x_input, y_target, x_clustering[clustering_features],
                                        estimator_4each_cluster=params["estimator_4each_cluster"],
                                        features_4each_cluster=features_4each_cluster,
@@ -94,7 +94,7 @@ if __name__ == "__main__":
         excelname1, excelname2, results_n_runs = fpga_pred.store_output(ret)
         ##############################################################
         # now validate the model with true shuffle
-        print("**main.py: evaluating the model for each cluster separately and with true shuffle")
+        print("\n**main.py: evaluating the model for each cluster separately and with true shuffle\n")
         ret = fpga_pred.evaluate_model(x_input, y_target, x_clustering[clustering_features],
                                        estimator_4each_cluster=params["estimator_4each_cluster"],
                                        features_4each_cluster=features_4each_cluster,
@@ -111,7 +111,7 @@ if __name__ == "__main__":
 
         ############################################################################
         # now validate the model with seeded shuffle and with clustering
-        print("**main.py: evaluating the model with clustering and prediction together and with seeded shuffle")
+        print("\n**main.py: evaluating the model with clustering and prediction together and with seeded shuffle\n")
         ret = fpga_pred.evaluate_model(x_input, y_target, x_clustering[clustering_features],
                                        estimator_4each_cluster=params["estimator_4each_cluster"],
                                        features_4each_cluster=features_4each_cluster,
@@ -132,7 +132,7 @@ if __name__ == "__main__":
         result_4each_clustering_subset.append(results_n_runs)
 
         # now validate the model with true shuffle and with clustering
-        print("**main.py: evaluating the model with clustering and prediction together and with true shuffle")
+        print("\n**main.py: evaluating the model with clustering and prediction together and with true shuffle\n")
         ret = fpga_pred.evaluate_model(x_input, y_target, x_clustering[clustering_features],
                                        estimator_4each_cluster=params["estimator_4each_cluster"],
                                        features_4each_cluster=features_4each_cluster,
