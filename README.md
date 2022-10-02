@@ -107,4 +107,4 @@ This command will find the clustering features and prediction features to predic
 
 ## Code Flow
 
-<img src="https://github.com/tawfiqabuaita1/FPGAPredict-Research/blob/main/FPGAPredict_img.png" width="auto"/>
+<img src="https://github.com/tawfiqabuaita1/FPGAPredict-Research/blob/main/code_flow.png" width="auto"/>
