@@ -14,14 +14,17 @@ from sklearn.cluster import KMeans
 from clustering_regression import ClusteringRegression
 from kfold import *
 
-ESTIMATORS = {0: ClusteringRegression(), 1: LinearRegression(), 2: ExponentialRegression(), 3: RandomForestRegressor(),
+ESTIMATORS = {1: LinearRegression(), 2: ExponentialRegression(), 3: RandomForestRegressor(),
               4: MLPRegressor(hidden_layer_sizes=(100,), learning_rate='adaptive', max_iter=500,
                                solver='lbfgs'), 5: DecisionTreeRegressor(),
-              6: KNeighborsRegressor(), 7: Ridge()}
-
-ESTIMATORS2 = ESTIMATORS.copy()
-for i in range(1,7):
-   ESTIMATORS2[i] = ESTIMATORS2[i].__class__.__name__
+              6: KNeighborsRegressor(), 7: Ridge(),
+              "Linear": LinearRegression(), "Exp": ExponentialRegression(), "RF": RandomForestRegressor(),
+              "ANN": MLPRegressor(hidden_layer_sizes=(100,), learning_rate='adaptive', max_iter=500,
+                               solver='lbfgs'),
+              "DecTree":DecisionTreeRegressor(),
+              "KNN":KNeighborsRegressor(),
+              "Ridge":Ridge()
+              }
 # creates a copy of an estimator in memory
 def copy(estimator):
     try:
