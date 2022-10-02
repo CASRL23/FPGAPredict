@@ -157,7 +157,7 @@ class FPGAPredict:
                                    max_features=None, estimator_4each_cluster=None):
         print("FPGAPredict: Selecting the prediction features for each cluster ..")
 
-        if estimator_4each_cluster is None:
+        if estimator_4each_cluster is None or np.array(estimator_4each_cluster).shape[0] < self.n_clusters:
             estimator_4each_cluster = [self.estimator for k in range(self.n_clusters)]
 
         # get the clusters (input and target datasets and the benchmarks corresponding to each cluster)
@@ -224,7 +224,7 @@ class FPGAPredict:
                        features_4each_cluster=None, random_state=None):
 
         # prepare the estimator and features for each cluster
-        if estimator_4each_cluster is None:
+        if estimator_4each_cluster is None or np.array(estimator_4each_cluster).shape[0] < self.n_clusters:
             estimator_4each_cluster = [self.estimator for i in range(self.n_clusters)]
         if features_4each_cluster is None:
             features_4each_cluster = [self.features for i in range(self.n_clusters)]
