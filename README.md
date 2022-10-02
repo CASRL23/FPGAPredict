@@ -117,14 +117,14 @@ To run the parser script, use the following command:
 	python3 parser.py directory=<string> sheet_name=<string> output_name=<string> n_runs=<int>
 
 ### Parameters Description
-#### directory: the directory name that contains the output files.
-#### sheet_name: the sheet name in the excel files that contains the results. If you do not specify this parameter, the script will use the sheet name seeded_<nruns>_clustering.
-#### output_name: the output excel file name that will have a summary of all the results.
-### n_runs: the number of KFold runs that were performed. If you do not specify this parameter, the script will use n_runs=50 as the default.
+1. directory: the directory name that contains the output files.
+2. sheet_name: the sheet name in the excel files that contains the results. If you do not specify this parameter, the script will use the sheet name seeded_<nruns>_clustering.
+3. output_name: the output excel file name that will have a summary of all the results.
+4. n_runs: the number of KFold runs that were performed. If you do not specify this parameter, the script will use n_runs=50 as the default.
 
 ### Other Parameters for the parser script
-#### mode: whether to append or create a new results file. The default is "w" which means create a new file. You can change it to "a" to append new results to a file that already exists.
-#### startrow: determines the row at which the script will start writing the results. The default is 0 to start from the beginning of the file but you may change that to append the results starting at a different row.
+5. mode: whether to append or create a new results file. The default is "w" which means create a new file. You can change it to "a" to append new results to a file that already exists.
+6. startrow: determines the row at which the script will start writing the results. The default is 0 to start from the beginning of the file but you may change that to append the results starting at a different row.
 	
 ## Regression Test (reg_test.py)
 We provide a script that performs regression tests (reg_test.py). You can simply run the script using the command:
