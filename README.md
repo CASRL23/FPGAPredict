@@ -82,10 +82,14 @@ Passed paramaters through command line will override any configurations in confi
 Four main outputs are stored:
 1)  A directory of the target feature will be created (if not there already). 
     Under this directory, an excel file will be stored of the format: <estimator>_<board>_c<n_clusters>.xlsx
-    This file will have one random run of the clusters, each of them separately (without the clustering prediction part)
-    And it will have another sheet of <n_runs> (i.e. 50) random runs that include the clustering prediction. 
-    These runs will record the average error for each single benchmark and a summary of
-    the average <n_runs> error, STDEV, RMSE, and RRMSE. Also it will record the stdev <n_runs> of the error, STDEV, RMSE, and RRMSE.
+    This file will contain the following sheets:
+    a. seeded_<nruns>_runs: This sheet will contain the results of evaluating the model by running <nruns> seeded KFolds on each cluster **separately**. Treating each cluster separately means we cluster the original (whole) dataset and we treat each cluster as a separate dataset. Then we collect the overall average error over all benchmarks in all clusters. The folds of this sheet are seeded meaning that they must not change if we run the experiment again with the same seeds. You can specify the starting seed in the parameter "random_state".
+    b. true_<nruns>_runs: the experiment done in this sheet is almost exactly the same as the one in the previous sheet except that now we do true shuffle. As such, the results of this sheet may change if we run the experiment again since the folds are selected randomly every time.
+    c. seeded_<nruns>runs_clustering: This sheet will contain the results of evaluating the model by running <nruns> seeded KFolds on the whole dataset and performing the clustering on the training set in each kfold. In this experiment, the dataset is not clustered at the beginning. Instead, we cluster the training set and fit the estimator for each cluster, then we have a new testing data, we assume it is a completely new data and predict its cluster first. According to the predicted cluster, we used to the estimator for that cluster to predict the value of the target metric for that benchmark.
+    d. true_<nruns>runs_clustering: This sheet contains the results of a similar experiment to the previous sheet except that true shuffle is performed with KFold this time. As such, the results of this sheet may change if we run the experiment again since the folds are selected randomly every time.
+    
+    All of these sheets will record the <nruns> average error and average predicted target metric for each single benchmark. Also, they will store a summary of the estimators, features, and average errors of each cluster and the overall average error, standard deviation, and RRMSE of the whole dataset.
+    
 2)  In the main directory of the project, the same file in number 1 will be stored. 
     However, this file may be overwritten if the same experiment is performed, while the file in number 1 will never be overwritten.
 3)  If prediction exhaustive search was performed, then in the directory of the target feature, a file will be stored that contain the top 5 prediction features subsets.
