@@ -21,24 +21,24 @@ Passed paramaters through command line will override any configurations in confi
 
 *excelname*: (default: 'arria2_features.xls') the name of the excel file that contains the data, must have an extension of xls or xlsx.
 
-*estimator_4each_cluster*: a 2D array or None, containing the estimator of each cluster (i.e. [cluster 0 estimator, cluster 1 estimator ... etc]). Each estimator can be an integer or a string corresponding to a key from the following dictionary (defined as ESTIMATORS in estimators.py):
-			{1: LinearRegression(),
-			2: ExponentialRegression(),
-			3: RandomForestRegressor(),
-              		4: MLPRegressor(hidden_layer_sizes=(100,), learning_rate='adaptive', max_iter=500,
-                               solver='lbfgs'),
-			5: DecisionTreeRegressor(),
-              		6: KNeighborsRegressor(),
-			7: Ridge(),
-              		"Linear": LinearRegression(),
-			"Exp": ExponentialRegression(),
-			"RF": RandomForestRegressor(),
-              		"ANN": MLPRegressor(hidden_layer_sizes=(100,), learning_rate='adaptive', max_iter=500,
-                               solver='lbfgs'),
-              		"DecTree":DecisionTreeRegressor(),
-              		"KNN":KNeighborsRegressor(),
-              		"Ridge":Ridge()
-              		}
+*estimator_4each_cluster*: a 2D array or None, containing the estimator of each cluster (i.e. [cluster 0 estimator, cluster 1 estimator ... etc]). Each estimator can be an integer or a string corresponding to a key from the following dictionary (defined as ESTIMATORS in estimators.py):<br/>
+			&emsp; {1: LinearRegression(), <br/>
+			&emsp; 2: ExponentialRegression(), <br/>
+			&emsp; 3: RandomForestRegressor(), <br/>
+              		&emsp; 4: MLPRegressor(hidden_layer_sizes=(100,), learning_rate='adaptive', max_iter=500,
+                               solver='lbfgs'),<br/>
+			&emsp; 5: DecisionTreeRegressor(),<br/>
+              		&emsp; 6: KNeighborsRegressor(),<br/>
+			&emsp; 7: Ridge(),<br/>
+              		&emsp; "Linear": LinearRegression(),<br/>
+			&emsp; "Exp": ExponentialRegression(),<br/>
+			&emsp; "RF": RandomForestRegressor(),<br/>
+              		&emsp; "ANN": MLPRegressor(hidden_layer_sizes=(100,), learning_rate='adaptive', max_iter=500,
+                               solver='lbfgs'),<br/>
+              		&emsp; "DecTree":DecisionTreeRegressor(),<br/>
+              		&emsp; "KNN":KNeighborsRegressor(),<br/>
+              		&emsp; "Ridge":Ridge()<br/>
+              		&emsp; }<br/>
 *estimator*: (default: 1) an integer or string corresponding to a key from the dictionary above. This is the estimator to use with all clusters ONLY used if estimators_4each_clusters is defined as "None". 
 
 *prediction_n*: (default: 22) the number of top PCC ranked prediction features to pass to exhaustive search, only used when prediction_ex_search=True.
