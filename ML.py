@@ -40,6 +40,7 @@ class FPGAPredict:
         y_target: contains the target metrics dataset.
         x_clustering: contains the clustering features dataset.
     '''
+
     def read_excel_sheet(self, features, target, clustering):
 
         # either read only part of the excel file or read it all based on the configurations
@@ -79,7 +80,6 @@ class FPGAPredict:
         self.target_name = y_target.columns
         return x_input, y_target, x_clustering
 
-
     '''
     Description:
     selects the clustering features using exhaustive search (only if the parameter ex_search=True).
@@ -93,13 +93,15 @@ class FPGAPredict:
         -min_features: integer, the minimum features to try in exhaustive search.
         -max_features: integer, the maximum features to try in exhaustive search.
         -n: integer, the number of features to select (using PCC) and pass to exhaustive search.
-        
+
     returns: A 2-D list of the top clustering features.
         -top_clustering_features: a 2-D list containing all top clustering features subsets that gave 0% clustering error 
             or
          only one clustering features subset that has the minimum clustering error (if not 0%)
     '''
-    def select_clustering_features(self, x_input, y_target, x_clustering, ex_search=False, min_features=2, max_features=None, n=10):
+
+    def select_clustering_features(self, x_input, y_target, x_clustering, ex_search=False, min_features=2,
+                                   max_features=None, n=10):
 
         # perform exhaustive search if ex_search=True
         if ex_search:
@@ -108,9 +110,9 @@ class FPGAPredict:
 
             # initialize Exhaustive Search using KMeans
             ex_selector = ExhaustiveSearch(estimator=KMeans(n_clusters=self.n_clusters, random_state=42),
-                                    n_splits=self.n_splits, n=n, clustering=True,
-                                    max=max_features, min=min_features,
-                                    parallel=self.parallel, n_cpu=self.n_cpu, printt=self.print_bool)
+                                           n_splits=self.n_splits, n=n, clustering=True,
+                                           max=max_features, min=min_features,
+                                           parallel=self.parallel, n_cpu=self.n_cpu, printt=self.print_bool)
 
             # record the start time
             time1 = perf_counter()
@@ -138,7 +140,7 @@ class FPGAPredict:
     '''
     Description:
     clusters the dataset and selects the prediction features for each cluster separately.
-    
+
     parameters:
         -x_input: a dataframe of the input features dataset.
         -y_target: a dataframe of the target features dataset.
@@ -148,11 +150,12 @@ class FPGAPredict:
         -max_features: integer, the maximum features to try in exhaustive search.
         -n: integer, the number of features to select (using PCC) and pass to exhaustive search.
         -estimator_4each_cluster: A 2D list containing the estimator for each cluster. The length of the list must equal self.n_clusters.
-    
+
     returns: 2D list with the features for each cluster
         -features_4each_cluster: A 2D list containing the selected features subset for each cluster.
                                  The length of the list equals self.n_clusters
     '''
+
     def select_prediction_features(self, x_input, y_target, x_clustering, ex_search=False, n=10, min_features=2,
                                    max_features=None, estimator_4each_cluster=None):
         print("FPGAPredict: Selecting the prediction features for each cluster ..")
@@ -178,10 +181,10 @@ class FPGAPredict:
             # perform Exhaustive Search for prediction if ex_search=True
             if ex_search:
                 ex_selector = ExhaustiveSearch(estimator=estimator_4each_cluster[cluster], n_splits=self.n_splits,
-                                        min=min_features, max=max_features,
-                                        printt=self.print_bool,
-                                        n=n, scaling=self.scaling,
-                                        parallel=self.parallel, n_cpu=self.n_cpu)
+                                               min=min_features, max=max_features,
+                                               printt=self.print_bool,
+                                               n=n, scaling=self.scaling,
+                                               parallel=self.parallel, n_cpu=self.n_cpu)
 
                 time1 = perf_counter()
 
@@ -220,6 +223,7 @@ class FPGAPredict:
                 -"estimator_4_each_cluster": this key stores the input parameter(estimator_4each_cluster) - see its definition above.
                 -"overall_avg_error": this key stores a float, the overall average testing error over the n_runs.
     '''
+
     def evaluate_model(self, x_input, y_target, x_clustering, with_clustering=False, estimator_4each_cluster=None,
                        features_4each_cluster=None, random_state=None):
 
@@ -231,9 +235,10 @@ class FPGAPredict:
 
         # prepare the results dictioanry that will be returned
         nruns_result_dict = {"results": {}, "stats": {}, "avg_training_error": {}, "avg_testing_error": {},
-               "features_4each_cluster": features_4each_cluster, "estimator_4each_cluster": estimator_4each_cluster,
-               "overall_avg_error": 0}
-
+                             "features_4each_cluster": features_4each_cluster,
+                             "clustering_features": x_clustering.columns.tolist(),
+                             "estimator_4each_cluster": estimator_4each_cluster,
+                             "overall_avg_error": 0}
 
         if with_clustering or self.n_clusters > 1:
 
@@ -312,7 +317,7 @@ class FPGAPredict:
     '''
         Description:
         Perform KFold one time on the dataset provided and using the provided estimator.
-        
+
         parameters:
             -x_input: a dataframe of the input features dataset.
             -y_target: a dataframe of the target features dataset.
@@ -323,12 +328,13 @@ class FPGAPredict:
                             If random state is an integer, do seeded shuffle for KFold.
             -with_clustering: whether to perform clustering and prediction together (i.e. whether to use ClusteringRegression model)
             -print_bool: whether to print some statistics while doing KFold.
-    
+
         returns: A dictionary of the results that have the following keys:
                 -"results": this key stores a dataframe of the results (i.e. real and predicted values, average error, etc.)
                 -"stats": this key stores a dataframe of some statistics summary (i.e. total average error, stdev..etc.)
                 -"testing_error": this key stores a float, the total average error of kfold.
     '''
+
     def kfold(self, x_input, y_target, x_clustering, estimator, random_state=None, with_clustering=False,
               print_bool=True):
 
@@ -537,7 +543,9 @@ class FPGAPredict:
         Then it stores the average of average errors, standard deviation, and RRMSE of the nruns.
         Finally it stores up to 10 example runs out of the total nruns. 
     '''
-    def store_output(self, nruns_result_dict, sheet_name=None, excelname1=None, excelname2=None, mode='w', with_clustering=False):
+
+    def store_output(self, nruns_result_dict, sheet_name=None, excelname1=None, excelname2=None, mode='w',
+                     with_clustering=False):
 
         # prepare names for the output file and sheet
 
@@ -616,15 +624,17 @@ class FPGAPredict:
                 error_label_4each_cluster.append("Cluster {} Error (%)".format(c))
                 feature_label_4each_cluster.append("Cluster {} Features".format(c))
                 estimators_label_4each_cluster.append("Cluster {} Estimator".format(c))
+        feature_label_4each_cluster.append("Clustering Features")
+        features = [
+            nruns_result_dict["features_4each_cluster"][:self.n_clusters] + nruns_result_dict["clustering_features"]]
         results_n_runs = pd.concat(summary_4each_cluster)
 
         # stats dataframe has the overall avg error, average stdev of errors, and overall RMSE
         stats = pd.concat(stats_4each_cluster).groupby(level=0).mean()
 
         # features dataframe has the features for each cluster
-        features = pd.DataFrame([nruns_result_dict["features_4each_cluster"][:self.n_clusters]],
-                                columns=feature_label_4each_cluster[:self.n_clusters],
-                                index=[nruns_result_dict["estimator_4each_cluster"][0].__class__.__name__])
+        features = pd.DataFrame(features,
+                                columns=feature_label_4each_cluster)
 
         # estimators dataframe has the estimator for each cluster
         estimators = pd.DataFrame([nruns_result_dict["estimator_4each_cluster"][:self.n_clusters]],
@@ -720,6 +730,7 @@ class FPGAPredict:
     Description:
         This function prints up to 10 results of the n_runs in the all_result_dict parameter.
     '''
+
     def print_result(self, nruns_result_dict, with_clustering=False):
         if with_clustering:
             n_clusters = 1
@@ -738,7 +749,6 @@ class FPGAPredict:
                     print("\n")
 
                 print("\n")
-
 
     def plot_show(self):
         plt.show()
