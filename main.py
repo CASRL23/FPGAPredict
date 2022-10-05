@@ -88,10 +88,10 @@ if __name__ == "__main__":
                                        random_state=params["random_state"])
 
         # print 10 of the results
-        fpga_pred.print_result(ret, sheet_name="seeded_{}_runs".format(params["n_runs"]))
+        fpga_pred.print_result(ret)
 
         # store the output in excel file
-        excelname1, excelname2, results_n_runs = fpga_pred.store_output(ret)
+        excelname1, excelname2, results_n_runs = fpga_pred.store_output(ret, sheet_name="seeded_{}_runs".format(params["n_runs"]))
         ##############################################################
         # now validate the model with true shuffle
         print("\n**main.py: evaluating the model for each cluster separately and with true shuffle\n")
