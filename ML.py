@@ -626,7 +626,7 @@ class FPGAPredict:
                 estimators_label_4each_cluster.append("Cluster {} Estimator".format(c))
         feature_label_4each_cluster.append("Clustering Features")
         features = [
-            nruns_result_dict["features_4each_cluster"][:self.n_clusters] + nruns_result_dict["clustering_features"]]
+            nruns_result_dict["features_4each_cluster"][:self.n_clusters] + [nruns_result_dict["clustering_features"]]]
         results_n_runs = pd.concat(summary_4each_cluster)
 
         # stats dataframe has the overall avg error, average stdev of errors, and overall RMSE
