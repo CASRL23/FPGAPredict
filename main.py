@@ -88,7 +88,7 @@ if __name__ == "__main__":
                                        random_state=params["random_state"])
 
         # print 10 of the results
-        fpga_pred.print_result(ret, sheet_name="seeded_{}_runs".format(inputs["n_runs"])
+        fpga_pred.print_result(ret, sheet_name="seeded_{}_runs".format(params["n_runs"]))
 
         # store the output in excel file
         excelname1, excelname2, results_n_runs = fpga_pred.store_output(ret)
