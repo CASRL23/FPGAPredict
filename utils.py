@@ -25,7 +25,6 @@ def validate_inputs(inputs):
     inputs["print"] = strtobool(inputs["print"])
     inputs["parallel"] = strtobool(inputs["parallel"])
     inputs["prediction_n"] = int(inputs["prediction_n"])
-    inputs["with_clustering"] = strtobool(inputs["with_clustering"])
     if inputs["estimator_4each_cluster"] == "None" or inputs["estimator_4each_cluster"] is None:
         inputs["estimator_4each_cluster"] = None
     else:
