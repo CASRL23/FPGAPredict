@@ -77,7 +77,7 @@ class FPGAPredict:
         x_input_rows_with_NaN = x_input.isnull().any(axis=1)
         y_target_rows_with_NaN = y_target.isnull().any(axis=1)
         x_clustering_rows_with_NaN = x_clustering.isnull().any(axis=1)
-        rows_with_NaN = x_input_rows_with_Nan & y_target_rows_with_NaN & x_clustering_rows_with_NaN
+        rows_with_NaN = x_input_rows_with_NaN & y_target_rows_with_NaN & x_clustering_rows_with_NaN
         x_input = x_input[~rows_with_NaN]
         y_input = y_input[~rows_with_NaN]
         x_clustering = x_clustering[~rows_with_NaN]
