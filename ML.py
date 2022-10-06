@@ -7,7 +7,6 @@ from utils import name_file
 import matplotlib.pyplot as plt
 import openpyxl
 
-
 class FPGAPredict:
 
     def __init__(self, params):
