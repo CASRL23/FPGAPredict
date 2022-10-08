@@ -460,6 +460,8 @@ def permutation_fit(x, y, estimator, subset, n_splits=5, clustering=False,
                 pred_y = pred_y.flatten()
                 test_y = np.array(test_y)
                 test_y = test_y.flatten()
+                test_y = np.where(test_y == 0, 0.01, test_y)
+                pred_y = np.where(pred_y == 0, 0.01, pred_y)
 
                 error = np.abs(np.divide((pred_y - test_y), test_y) * 100)
                 error = list(error)
