@@ -7,6 +7,7 @@ from utils import name_file
 import matplotlib.pyplot as plt
 import openpyxl
 
+
 class FPGAPredict:
 
     def __init__(self, params):
@@ -87,7 +88,7 @@ class FPGAPredict:
         x_input = x_input[~rows_with_NaN]
         y_target = y_target[~rows_with_NaN]
         x_clustering = x_clustering[~rows_with_NaN]
-        
+
         # save features and benchmarks names
         self.features = x_input.columns.tolist()
         self.benchmarks = x_input.index.tolist()
@@ -451,7 +452,8 @@ class FPGAPredict:
 
             pred_y = np.array(pred_y).flatten()
             test_y = np.array(test_y).flatten()
-
+            test_y = np.where(test_y == 0, 0.01, test_y)
+            pred_y = np.where(pred_y == 0, 0.01, pred_y)
             all_predy += list(pred_y)
             all_testy += list(test_y)
 
