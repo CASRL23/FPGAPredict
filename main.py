@@ -55,7 +55,7 @@ if __name__ == "__main__":
                                                                    ex_search=params["clustering_ex_search"],
                                                                    min_features=params["clustering_min_features"],
                                                                    max_features=params["clustering_max_features"])
-    if clustering_features is None:
+    if top_clustering_features is None:
         if params["clustering_features"] is None:
             top_clustering_features = [x_clustering.columns.tolist()]
         else:
