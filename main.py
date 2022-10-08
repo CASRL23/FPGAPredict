@@ -38,8 +38,6 @@ if __name__ == "__main__":
     params = validate_inputs(params)
     print("\n*** main.py: Running with the following configuration: \n%s\n" % params)
 
-    params["shuffle"] = True
-
     # initialize FPGAPredict with the configuration
     fpga_pred = FPGAPredict(params)
 
@@ -57,8 +55,11 @@ if __name__ == "__main__":
                                                                    ex_search=params["clustering_ex_search"],
                                                                    min_features=params["clustering_min_features"],
                                                                    max_features=params["clustering_max_features"])
-    if len(top_clustering_features) == 0:
-        top_clustering_features - params["clustering_features"]
+    if clustering_features is None:
+        if params["clustering_features"] is None:
+            top_clustering_features = [x_clustering.columns.tolist()]
+        else:
+            top_clustering_features = params["clustering_features"]
 
     # prepare an array to store the average error of each top clustering feature subset
     avg_error_4each_clustering_subset = []
