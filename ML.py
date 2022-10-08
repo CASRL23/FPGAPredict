@@ -148,7 +148,7 @@ class FPGAPredict:
                 "FPGAPredict: ELAPSED TIME FOR SELECTING THE FEATURES IS: %.4f seconds.\nStart Time = %.4f seconds and End Time = %.4f seconds\n" % (
                     elapsed, time1, time2))
         else:
-            top_clustering_features = [x_clustering.columns.tolist()]
+            top_clustering_features = None
 
         return top_clustering_features
 
