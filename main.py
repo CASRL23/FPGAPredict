@@ -46,7 +46,7 @@ if __name__ == "__main__":
     # read the data set from excel
     x_input, y_target, x_clustering = fpga_pred.read_excel_sheet(features=params["features"],
                                                                  target=[params["target_metric"]],
-                                                                 clustering=params["clustering_features"])
+                                                                 clustering=None)
 
     # get the total number of benchmarks
     n_benchmarks = len(fpga_pred.benchmarks)
@@ -57,6 +57,8 @@ if __name__ == "__main__":
                                                                    ex_search=params["clustering_ex_search"],
                                                                    min_features=params["clustering_min_features"],
                                                                    max_features=params["clustering_max_features"])
+    if len(top_clustering_features) == 0:
+        top_clustering_features - params["clustering_features"]
 
     # prepare an array to store the average error of each top clustering feature subset
     avg_error_4each_clustering_subset = []
@@ -68,13 +70,14 @@ if __name__ == "__main__":
         if count > 1:  # only go over the first two top clustering features
             break
         print("\n-----------------------------------------------------\n**main.py: Running an experiment with the "
-              "clustering features %s\n-----------------------------------------------------\n" %clustering_features)
+              "clustering features %s\n-----------------------------------------------------\n" % clustering_features)
         # select the prediction features for each cluster
-        features_4each_cluster = fpga_pred.select_prediction_features(x_input, y_target, x_clustering[clustering_features],
+        features_4each_cluster = fpga_pred.select_prediction_features(x_input, y_target,
+                                                                      x_clustering[clustering_features],
                                                                       estimator_4each_cluster=params[
                                                                           "estimator_4each_cluster"],
                                                                       ex_search=params["prediction_ex_search"],
-                                                                      n = params["prediction_n"],
+                                                                      n=params["prediction_n"],
                                                                       min_features=params["prediction_min_features"],
                                                                       max_features=params["prediction_max_features"])
 
@@ -91,7 +94,8 @@ if __name__ == "__main__":
         fpga_pred.print_result(ret)
 
         # store the output in excel file
-        excelname1, excelname2, results_n_runs = fpga_pred.store_output(ret, sheet_name="seeded_{}_runs".format(params["n_runs"]))
+        excelname1, excelname2, results_n_runs = fpga_pred.store_output(ret, sheet_name="seeded_{}_runs".format(
+            params["n_runs"]))
         ##############################################################
         # now validate the model with true shuffle
         print("\n**main.py: evaluating the model for each cluster separately and with true shuffle\n")
