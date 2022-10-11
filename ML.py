@@ -761,8 +761,7 @@ class FPGAPredict:
                     result = nruns_result_dict["results"][c][j]
                     print(result.to_string())
                     stat = nruns_result_dict["stats"][c][j]
-                    print(stat.to_string())
-                    print("\n")
+                    print(stat.to_string(),"\n")
 
                 print("\n")
 

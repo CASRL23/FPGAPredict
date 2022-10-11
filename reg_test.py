@@ -77,5 +77,5 @@ elif total_exit_codes == total_tests:
     exit(1)
 else:
     print("\nWARNING: some regression tests FAILED! :(\n%d out of %d total tests FAILED :(\n" % (
-    total_exit_codes, total_tests))
+    total_exit_codes, total_tests)) #which tests?
     exit(2)
