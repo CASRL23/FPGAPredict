@@ -64,7 +64,7 @@ def validate_inputs(inputs):
     elif isinstance(inputs["clustering_features"], str):
         inputs["clustering_features"] = list(inputs["clustering_features"].split("*"))
         for a in range(len(inputs["clustering_features"])):
-            inputs["clustering_features"][a] = inputs["clustering_features"][a].split(","))
+            inputs["clustering_features"][a] = inputs["clustering_features"][a].split(",")
     if inputs["random_state"] == "None" or inputs["random_state"] == None:
         inputs["random_state"] = None
     else:
