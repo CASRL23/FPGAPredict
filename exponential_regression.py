@@ -90,7 +90,7 @@ class ExponentialRegression:
         
         for i in range(x.shape[0]):
             dot = np.dot(np.transpose(b), x[i])
-            pred = np.exp(a) * np.exp(dot)
+            pred = np.exp(a+dot)
             pred_arr.append(pred)
 
         mask1 = np.isnan(pred_arr)
