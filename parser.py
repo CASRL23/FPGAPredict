@@ -20,16 +20,6 @@ if __name__ == "__main__":
         inp = parameter_and_input[1]
         config[parameter] = inp
 
-    if len(cmd_args) > 0:
-        directory = cmd_args[0]
-        if len(cmd_args)>1:
-            n_runs = cmd_args[1]
-            if len(cmd_args)>2:
-                if cmd_args[2] > 0:
-                    mode = 'a'
-
-                if len(cmd_args)>3:
-                    startrow = int(cmd_args[3])
     if config["sheet_name"] == "":
         config["sheet_name"] = "seeded_" + str(config["n_runs"]) + "runs_clustering"
     print("parsing with the following configurations")
@@ -48,8 +38,6 @@ if __name__ == "__main__":
     files = [directory + "/" + f for f in listdir(directory) if isfile(join(directory, f)) and f.split(".")[1]=="xlsx"]
 
     for file in files:
-
-        estimator = file.split("_")[0].split("/")[1]
         skip = False
         try:
 
@@ -60,11 +48,11 @@ if __name__ == "__main__":
         if not skip:
             try:
 
-                row_number = result[result[0] == estimator].index.tolist()[0]
+                row_number = result[result[0] == "Summary: "].index.tolist()[0]
                 final_result = result.iloc[row_number:row_number + 1]
                 final_result = final_result.drop([0], axis=1)
                 final_result.columns = result.iloc[row_number - 1][1:]
-                final_result.index = [estimator]
+                final_result.index = ["Summary: "]
                 final_result.to_excel(writer, startrow=startrow, sheet_name=sheet_name)
                 startrow = startrow + 3
             except (IndexError, ValueError):
