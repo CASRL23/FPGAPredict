@@ -9,6 +9,7 @@ from datetime import datetime
 from estimators import *
 from utils import name_file
 
+
 class ExhaustiveSearch:
 
     def __init__(self, estimator, n_splits=5, n=15, min=1, max=None, clustering=False,
@@ -138,9 +139,11 @@ class ExhaustiveSearch:
                 # find the different possible combinations of features for this iteration
                 subsets = combinations(self.features, choose)
                 processes = []
-
+                
+                i = 0
                 # try every subset is subsets
                 for subset in subsets:
+                    i += 1
                     subset = np.array(subset)
 
                     # isolate only the features pointed by the variable subset
@@ -167,7 +170,75 @@ class ExhaustiveSearch:
                         else:
                             process = training_fit(new_x, y, self.estimator, subset)
                     processes.append(process)
+                    
+                    # wait and extract the results 
+                    if i == pnumber:
+                        # wait for all processes to finish
+                        if self.parallel:
+                            pool.close()
+                            pool.join()
 
+                        for process in processes:
+                            if self.parallel:
+                                retval = process.get()
+                            else:
+                                retval = process
+
+                            error = retval[0]
+                            subset = retval[1]
+                            std_error = retval[2]
+                            avg_pcc = retval[3]
+
+                            if error < min_error or (error == min_error and avg_pcc > max_pcc and self.clustering):
+                                min_error = error
+                                min_subset = subset
+                                max_pcc = avg_pcc
+                                # do 50 runs in the next iteration only if the error is less than the maximum error
+                                if retval[4] < self.nruns_error:
+                                    self.nruns_error = retval[4]
+
+                            temp_subset = list(subset)
+                            # store the clustering subsets that give 0% error
+                            if self.clustering and error == 0 and not (temp_subset in found_c_subsets):
+                                found_c_subsets.append(temp_subset)
+                                temp = pd.DataFrame([[subset, avg_pcc]],
+                                                    columns=["Clustering Features", "Avg. PCC"])
+                                if best_c_subsets is None:
+                                    best_c_subsets = temp.copy()
+                                else:
+                                    best_c_subsets = pd.concat([best_c_subsets, temp], ignore_index=True)
+
+                                if len(best_c_subsets.index.tolist()) > 10:
+                                    self.nruns_pcc = best_c_subsets["Avg. PCC"].min()
+
+                            # store the top 5 prediction subsets IN ORDER
+
+                            elif not self.clustering and self.printt:
+
+                                transformed_features = list(subset)
+                                if (count < 5 or top_5_subsets.iloc[4]["Avg Error (%)"] > error) and not \
+                                        (transformed_features in all_found_features):
+                                    temp = pd.DataFrame([[transformed_features, error, std_error]],
+                                                        columns=["Features", "Avg Error (%)", "STD Error"])
+                                    if top_5_subsets is None:
+                                        top_5_subsets = temp
+                                    else:
+                                        top_5_subsets = pd.concat([top_5_subsets, temp], ignore_index=True)
+                                    all_found_features.append(transformed_features)
+                                    count += 1
+                                elif count > 5:
+                                    top_5_subsets = top_5_subsets.sort_values("Avg Error (%)", ignore_index=True)
+                                    if top_5_subsets.iloc[4]["Avg Error (%)"] > error and not (
+                                            transformed_features in all_found_features):
+                                        top_5_subsets.drop([4], axis=0, inplace=True)
+                                        temp = pd.DataFrame([[transformed_features, error, std_error]],
+                                                            columns=["Features", "Avg Error (%)", "STD Error"])
+                                        top_5_subsets = pd.concat([top_5_subsets, temp], ignore_index=True)
+                                        all_found_features.append(transformed_features)
+                        # reset i and the processes 
+                        i = 0
+                        processes = []
+                
                 # wait for all processes to finish
                 if self.parallel:
                     pool.close()
@@ -245,7 +316,7 @@ class ExhaustiveSearch:
 
                 if np.array_equal(min_subset, prev_subset):
                     same_subset += 1
-                if same_subset >= 3 and same_subset < 5 and choose < self.n-1:
+                if same_subset >= 3 and same_subset < 5 and choose < self.n - 1:
                     if choose_list is None:
                         choose_list = [h for h in range(choose + 1, self.n + 1)]
                     choose = random.choice(choose_list)
@@ -323,7 +394,7 @@ def training_fit(x, y, estimator, subset):
 
 
 def permutation_fit(x, y, estimator, subset, n_splits=5, clustering=False,
-                    scaling=False, x2=None, max_error=10, min_pcc = -1):
+                    scaling=False, x2=None, max_error=10, min_pcc=-1):
     shuffle = True
     repeat = 50
     random_state = 0
@@ -412,7 +483,7 @@ def permutation_fit(x, y, estimator, subset, n_splits=5, clustering=False,
                     cluster_error = np.sum(np.isin(cluster_bench, benchmarks[original_clusters[c]], invert=True))
                     if cluster_error == 0:
                         continue
-                    elif cluster_error < cluster_bench.shape[0]/2:
+                    elif cluster_error < cluster_bench.shape[0] / 2:
                         training_error += cluster_error
                         continue
                     else:
@@ -425,8 +496,9 @@ def permutation_fit(x, y, estimator, subset, n_splits=5, clustering=False,
                     min_c = training_cluster
                     found_better = False
                     for original_cluster in not_checked_original_clusters:
-                        cluster_error = np.sum(np.isin(cluster_bench, benchmarks[original_clusters[original_cluster]], invert=True))
-                        if cluster_error == 0  or cluster_error < cluster_bench.shape[0]/2:
+                        cluster_error = np.sum(
+                            np.isin(cluster_bench, benchmarks[original_clusters[original_cluster]], invert=True))
+                        if cluster_error == 0 or cluster_error < cluster_bench.shape[0] / 2:
                             min_error = cluster_error
                             min_c = original_cluster
                             found_better = True
@@ -518,10 +590,10 @@ class PCC:
         y = np.array(_y)
         x = np.array(_x)
         shape = x.shape[1]
-        all_pcc = np.abs(np.corrcoef(x,y, rowvar=False)[-1][:-1])
+        all_pcc = np.abs(np.corrcoef(x, y, rowvar=False)[-1][:-1])
         if np.isnan(all_pcc).any():
             all_pcc = np.nan_to_num(all_pcc, nan=0)
-            
+
         if self.k is not None:
             mask = all_pcc.argsort()[-self.k:]
         else:
