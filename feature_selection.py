@@ -1,5 +1,4 @@
-'''
-Feature Selection using Exhaustive Search and PCC
+'''Feature Selection using Exhaustive Search and PCC
 '''
 import multiprocessing as mp
 import time
@@ -172,7 +171,7 @@ class ExhaustiveSearch:
                     processes.append(process)
                     
                     # wait and extract the results 
-                    if i == pnumber:
+                    if i >= 100000:
                         # wait for all processes to finish
                         if self.parallel:
                             pool.close()
@@ -238,6 +237,8 @@ class ExhaustiveSearch:
                         # reset i and the processes 
                         i = 0
                         processes = []
+                        if self.parallel:
+                            pool = mp.Pool(pnumber)
                 
                 # wait for all processes to finish
                 if self.parallel:
