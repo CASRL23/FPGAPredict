@@ -317,6 +317,8 @@ class ExhaustiveSearch:
 
                 if np.array_equal(min_subset, prev_subset):
                     same_subset += 1
+                else:
+                    same_subset = 0
                 if same_subset >= 3 and same_subset < 5 and choose < self.n - 1:
                     if choose_list is None:
                         choose_list = [h for h in range(choose + 1, self.n + 1)]
