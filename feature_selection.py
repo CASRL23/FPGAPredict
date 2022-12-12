@@ -170,7 +170,7 @@ class ExhaustiveSearch:
                             process = training_fit(new_x, y, self.estimator, subset)
                     processes.append(process)
 
-                    # wait and extract the results 
+                    # wait and extract the results
                     if i >= 100000:
                         # wait for all processes to finish
                         if self.parallel:
@@ -234,7 +234,7 @@ class ExhaustiveSearch:
                                                             columns=["Features", "Avg Error (%)", "STD Error"])
                                         top_5_subsets = pd.concat([top_5_subsets, temp], ignore_index=True)
                                         all_found_features.append(transformed_features)
-                        # reset i and the processes 
+                        # reset i and the processes
                         i = 0
                         processes = []
                         if self.parallel:
@@ -397,12 +397,11 @@ def training_fit(x, y, estimator, subset):
 
 
 def permutation_fit(x, y, estimator, subset, n_splits=5, clustering=False,
-                    scaling=False, x2=None, max_error=10, min_pcc=-1):
+                    scaling=False, x2=None, max_error=10, min_pcc=-1, repeat=50):
     shuffle = True
-    # TOFIX: implement repeat to be changed once here only
-    repeat = 50
     random_state = 0
     avg_pcc = -1
+    counter = 0
     if clustering:
         # cluster the whole dataset, and record the average PCC among the clusters
         kmeans = copy(estimator)
@@ -422,7 +421,7 @@ def permutation_fit(x, y, estimator, subset, n_splits=5, clustering=False,
     # record the error rate of every iteration here
     all_errors = []
 
-    while repeat > 0:
+    while counter < repeat:
 
         # increment the random state
         random_state += 1
@@ -546,10 +545,10 @@ def permutation_fit(x, y, estimator, subset, n_splits=5, clustering=False,
         avg_error = np.mean(all_errors)
 
         # perform 50 runs if the average error is less than 10%
-        if (not clustering and avg_error <= max_error and repeat == 50) or repeat < 50:
-            repeat -= 1
+        if (not clustering and avg_error <= max_error and counter == 0) or counter > 0:
+            counter += 1
 
-        elif clustering and avg_error <= max_error and repeat == 50:
+        elif clustering and avg_error <= max_error and counter == 0:
             # calculate the average pcc
             avg_pcc = 0
             # iterate through each cluster and find the PCC of the top 22 ranked features
@@ -563,11 +562,11 @@ def permutation_fit(x, y, estimator, subset, n_splits=5, clustering=False,
 
             avg_pcc = avg_pcc / n_clusters
             if avg_pcc > min_pcc or avg_error < max_error:
-                repeat -= 1
+                counter += 1
             else:
-                repeat = -1
+                counter = repeat # don't do multiple runs
         else:
-            repeat = -1
+            counter = repeat # don't do multiple runs
 
     avg_error = np.mean(all_errors)
 
