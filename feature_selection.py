@@ -599,8 +599,10 @@ class PCC:
             all_pcc = np.nan_to_num(all_pcc, nan=0)
 
         if self.k is not None:
+            # sort the features based on the PCC values then select the top k features out of them
             mask = all_pcc.argsort()[-self.k:]
         else:
+            # if k is not defined by the user, select all features that are bigger than the threshold 
             mask = np.where(all_pcc > self.threshold)
 
         best_pcc = all_pcc[mask]
