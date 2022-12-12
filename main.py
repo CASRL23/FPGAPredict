@@ -49,16 +49,22 @@ if __name__ == "__main__":
     # get the total number of benchmarks
     n_benchmarks = len(fpga_pred.benchmarks)
 
-    # select the top clustering features (only if n_clusters > 1 and clustering_perm=True)
+    # select the top clustering features (only if n_clusters > 1 and clustering_ex_search=True)
     top_clustering_features = fpga_pred.select_clustering_features(x_input, y_target, x_clustering,
                                                                    n=params["clustering_n"],
                                                                    ex_search=params["clustering_ex_search"],
                                                                    min_features=params["clustering_min_features"],
                                                                    max_features=params["clustering_max_features"])
+    # if select_clustering_features returns None, this means exhaustive search was not performed 
+    # this is either because n_clusters = 1 or if clustering_ex_search=False
     if top_clustering_features is None:
-        if params["clustering_features"] is None:
+        
+        # check if the user did not provide clustering features 
+        if params["clustering_features"] is None: 
+            # pass all of the features read from the excel file as clustering features
             top_clustering_features = [x_clustering.columns.tolist()]
         else:
+            # if the user provided clustering features then pass them as clustering features 
             top_clustering_features = params["clustering_features"]
 
     # prepare an array to store the average error of each top clustering feature subset
