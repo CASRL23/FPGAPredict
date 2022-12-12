@@ -407,6 +407,7 @@ def training_fit(x, y, estimator, subset):
     return np.mean(training_error), subset, np.std(training_error)
 
 
+# This function performs KFold on the subset passed to it, does the 50 repeatition if needed, and returns the average error and other statistics as needed.
 def permutation_fit(x, y, estimator, subset, n_splits=5, clustering=False,
                     scaling=False, x2=None, max_error=10, min_pcc=-1, repeat=50):
     shuffle = True
