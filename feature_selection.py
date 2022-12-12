@@ -43,27 +43,28 @@ class ExhaustiveSearch:
         self.nruns_pcc = -1
 
     # passing x and y as pandas dataframes
-    def fit(self, x_input_, y_target_, x_clustering_=None):
+    def fit(self, x_to_select_, y_target_, x_prediction_=None):
 
         if __name__ == "feature_selection":
 
             # select the highest n PCC ranked features to pass to exhaustive search
             pcc_all = PCC(k=self.n)
-            x_input = pcc_all.fit_transform(x_input_, y_target_)
+                
+            x_to_select = pcc_all.fit_transform(x_to_select_, y_target_)
             self.pcc = pcc_all  # save the PCC transformer
 
             # create a copy of the target feature
             y_target = y_target_.copy()
 
-            # x_clustering is the prediction features if we are performing clustering permutation. Otherwise x_clustering is None
-            if x_clustering_ is not None:
-                x_clustering = x_clustering_.copy()
+            # x_clustering is the clustering features if we are performing clustering permutation. Otherwise x_clustering is None
+            if x_prediction_ is not None:
+                x_clustering = x_prediction_.copy()
             else:
                 x_clustering = None
 
             # print details about the selected PCC features
             if self.printt:
-                print("Exhaustive Search: Passed features to permutation are %s\n" % x_input.columns.tolist())
+                print("Exhaustive Search: Passed features to permutation are %s\n" % x_to_select.columns.tolist())
                 print("PCC values are %s" % pcc_all.best_pcc)
 
             # determine the type of exhaustive search.
@@ -87,9 +88,9 @@ class ExhaustiveSearch:
                 print("perm features file is stored as %s" % _name)
 
             # loading data and saving features/benchmarks labels
-            self.features = np.array(x_input.columns)
+            self.features = np.array(x_to_select.columns)
             self.target = y_target_.columns
-            self.benchmarks = x_input.index
+            self.benchmarks = x_to_select.index
 
             # print to the user what will be running.
             if self.printt:
@@ -146,7 +147,7 @@ class ExhaustiveSearch:
                     subset = np.array(subset)
 
                     # isolate only the features pointed by the variable subset
-                    new_x = x_input[subset]
+                    new_x = x_to_select[subset]
 
                     # check whether to do exhaustive search on whole dataset or with KFold
                     if not self.whole_dataset:
