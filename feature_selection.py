@@ -399,6 +399,7 @@ def training_fit(x, y, estimator, subset):
 def permutation_fit(x, y, estimator, subset, n_splits=5, clustering=False,
                     scaling=False, x2=None, max_error=10, min_pcc=-1):
     shuffle = True
+    #TOFIX: implement repeat to be changed once here only
     repeat = 50
     random_state = 0
     avg_pcc = -1
@@ -547,6 +548,7 @@ def permutation_fit(x, y, estimator, subset, n_splits=5, clustering=False,
         # perform 50 runs if the average error is less than 10%
         if (not clustering and avg_error <= max_error and repeat == 50) or repeat < 50:
             repeat -= 1
+       
         elif clustering and avg_error <= max_error and repeat == 50:
             # calculate the average pcc
             avg_pcc = 0
@@ -560,7 +562,7 @@ def permutation_fit(x, y, estimator, subset, n_splits=5, clustering=False,
                 avg_pcc += np.mean(np.abs(pcc.best_pcc))
 
             avg_pcc = avg_pcc / n_clusters
-            if avg_pcc > min_pcc:
+            if avg_pcc > min_pcc or avg_error < max_error:
                 repeat -= 1
             else:
                 repeat = -1
