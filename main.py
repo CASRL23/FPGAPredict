@@ -55,16 +55,16 @@ if __name__ == "__main__":
                                                                    ex_search=params["clustering_ex_search"],
                                                                    min_features=params["clustering_min_features"],
                                                                    max_features=params["clustering_max_features"])
-    # if select_clustering_features returns None, this means exhaustive search was not performed 
+    # if select_clustering_features returns None, this means exhaustive search was not performed
     # this is either because n_clusters = 1 or if clustering_ex_search=False
     if top_clustering_features is None:
 
-        # check if the user did not provide clustering features 
+        # check if the user did not provide clustering features
         if params["clustering_features"] is None:
             # pass all of the features read from the excel file as clustering features
             top_clustering_features = [x_clustering.columns.tolist()]
         else:
-            # if the user provided clustering features then pass them as clustering features 
+            # if the user provided clustering features then pass them as clustering features
             top_clustering_features = params["clustering_features"]
 
     # prepare an array to store the average error of each top clustering feature subset
@@ -78,7 +78,7 @@ if __name__ == "__main__":
             break
         print("\n-----------------------------------------------------\n**main.py: Running an experiment with the "
               "clustering features %s\n-----------------------------------------------------\n" % clustering_features)
-        
+
         # select the prediction features for each cluster
         features_4each_cluster = fpga_pred.select_prediction_features(x_input, y_target,
                                                                       x_clustering[clustering_features],
@@ -89,7 +89,7 @@ if __name__ == "__main__":
                                                                       min_features=params["prediction_min_features"],
                                                                       max_features=params["prediction_max_features"])
 
-        
+
         # validate the model with the seeded shuffle
         print("\n**main.py: evaluating the model for each cluster separately and with seeded shuffle\n")
         ret = fpga_pred.evaluate_model(x_input, y_target, x_clustering[clustering_features],
@@ -97,7 +97,7 @@ if __name__ == "__main__":
                                        features_4each_cluster=features_4each_cluster,
                                        with_clustering=False,
                                        random_state=params["random_state"])
-        
+
         error_seeded = ret["overall_avg_error"]
         # print 10 of the results
         fpga_pred.print_result(ret)
@@ -114,7 +114,7 @@ if __name__ == "__main__":
                                        with_clustering=False,
                                        random_state=None)
         error_true = ret["overall_avg_error"]
-        
+
         # print 10 of the results
         fpga_pred.print_result(ret)
 
@@ -123,11 +123,10 @@ if __name__ == "__main__":
             fpga_pred.n_runs),
                                                                         excelname1=excelname1, excelname2=excelname2,
                                                                         mode='a')
-        # check if true and seeded shuffle differ by 2% 
-        
+        # check if true and seeded shuffle error differ by more than 2%
         if np.abs(error_true-error_seeded) > 2:
             print("\n**main.py - WARNING: the average error difference between the true and seeded shuffle WITHOUT clustering experiments is bigger than 2%\n")
-            
+
         ############################################################################
         # now validate the model with seeded shuffle and with clustering
         print("\n**main.py: evaluating the model with clustering and prediction together and with seeded shuffle\n")
@@ -158,7 +157,7 @@ if __name__ == "__main__":
                                        features_4each_cluster=features_4each_cluster,
                                        with_clustering=True,
                                        random_state=None)
-        
+
         error_true = ret["overall_avg_error"]
         # print 10 of the results
         fpga_pred.print_result(ret, with_clustering=True)
@@ -169,6 +168,7 @@ if __name__ == "__main__":
                                                                         excelname1=excelname1,
                                                                         excelname2=excelname2, mode='a',
                                                                         with_clustering=True)
+        # check if true and seeded shuffle error differ by more than 2%
         if np.abs(error_true - error_seeded) > 2:
             print(
                 "\n**main.py - WARNING: the average error difference between the true and seeded shuffle WITH clustering experiments is bigger than 2%\n")
