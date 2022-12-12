@@ -138,7 +138,7 @@ class ExhaustiveSearch:
                 # find the different possible combinations of features for this iteration
                 subsets = combinations(self.features, choose)
                 processes = []
-                
+
                 i = 0
                 # try every subset is subsets
                 for subset in subsets:
@@ -169,7 +169,7 @@ class ExhaustiveSearch:
                         else:
                             process = training_fit(new_x, y, self.estimator, subset)
                     processes.append(process)
-                    
+
                     # wait and extract the results 
                     if i >= 100000:
                         # wait for all processes to finish
@@ -239,7 +239,7 @@ class ExhaustiveSearch:
                         processes = []
                         if self.parallel:
                             pool = mp.Pool(pnumber)
-                
+
                 # wait for all processes to finish
                 if self.parallel:
                     pool.close()
@@ -399,7 +399,7 @@ def training_fit(x, y, estimator, subset):
 def permutation_fit(x, y, estimator, subset, n_splits=5, clustering=False,
                     scaling=False, x2=None, max_error=10, min_pcc=-1):
     shuffle = True
-    #TOFIX: implement repeat to be changed once here only
+    # TOFIX: implement repeat to be changed once here only
     repeat = 50
     random_state = 0
     avg_pcc = -1
@@ -548,7 +548,7 @@ def permutation_fit(x, y, estimator, subset, n_splits=5, clustering=False,
         # perform 50 runs if the average error is less than 10%
         if (not clustering and avg_error <= max_error and repeat == 50) or repeat < 50:
             repeat -= 1
-       
+
         elif clustering and avg_error <= max_error and repeat == 50:
             # calculate the average pcc
             avg_pcc = 0
