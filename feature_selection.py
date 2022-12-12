@@ -104,10 +104,20 @@ class ExhaustiveSearch:
             min_error = np.Inf
             max_pcc = -np.Inf
             count = 0
+            
+            # count the number of same subsets with every iteration. IF bigger than 3, select randomly. If bigger than 5, stop.
             same_subset = 0
+            
+            # record the previous subset of a previous iteration.
             prev_subset = None
+            
+            # whether to finish exhaustive search 
             finish = False
+            
+            # the choose list to select randomly from. used with same_subset
             choose_list = None
+            
+            # initial choose
             choose = self.min  # number of features to start with (default is 1 for example)
 
             # determine up to how many features to try
