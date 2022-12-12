@@ -56,11 +56,11 @@ class ExhaustiveSearch:
             # create a copy of the target feature
             y_target = y_target_.copy()
 
-            # x_prediction is the clustering features if we are performing clustering permutation. Otherwise x_prediction is None
+            # x_prediction is the prediction features if we are performing clustering permutation. 
             if x_prediction_ is not None:
                 x_prediction = x_prediction_.copy()
             else:
-                x_prediction = None
+                x_prediction = x_to_select_.copy()
 
             # print details about the selected PCC features
             if self.printt:
