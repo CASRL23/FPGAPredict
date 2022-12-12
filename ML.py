@@ -73,7 +73,8 @@ class FPGAPredict:
             x_clustering = pd.read_excel(self.excelname,
                                          sheet_name="features", engine=engine, index_col=0,
                                          usecols=clustering)  # read clustering features
-
+            
+        # clean the sheet. Remove any benchmarks with empty input, target, or clustering features.
         x_input_rows_with_NaN = x_input.isnull().any(axis=1)
         y_target_rows_with_NaN = y_target.isnull().any(axis=1)
         x_clustering_rows_with_NaN = x_clustering.isnull().any(axis=1)
