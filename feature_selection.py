@@ -43,27 +43,27 @@ class ExhaustiveSearch:
         self.nruns_pcc = -1
 
     # passing x and y as pandas dataframes
-    def fit(self, x_, _y, _x2=None):
+    def fit(self, x_input_, y_target_, x_clustering_=None):
 
         if __name__ == "feature_selection":
 
             # select the highest n PCC ranked features to pass to exhaustive search
             pcc_all = PCC(k=self.n)
-            x = pcc_all.fit_transform(x_, _y)
+            x_input = pcc_all.fit_transform(x_input_, y_target_)
             self.pcc = pcc_all  # save the PCC transformer
 
             # create a copy of the target feature
-            y = _y.copy()
+            y_target = y_target_.copy()
 
-            # x2 is the prediction features if we are performing clustering permutation. Otherwise x2 is None
-            if _x2 is not None:
-                x2 = _x2.copy()
+            # x_clustering is the prediction features if we are performing clustering permutation. Otherwise x_clustering is None
+            if x_clustering_ is not None:
+                x_clustering = x_clustering_.copy()
             else:
-                x2 = None
+                x_clustering = None
 
             # print details about the selected PCC features
             if self.printt:
-                print("Exhaustive Search: Passed features to permutation are %s\n" % x.columns.tolist())
+                print("Exhaustive Search: Passed features to permutation are %s\n" % x_input.columns.tolist())
                 print("PCC values are %s" % pcc_all.best_pcc)
 
             # determine the type of exhaustive search.
@@ -74,22 +74,22 @@ class ExhaustiveSearch:
 
             # prepare the files names to store the best permutation results in a file
             if self.printt:
-                _name = "perm_results " + str(_y.columns[0]) + "_" + str(type_f) + "_" + str(
+                _name = "perm_results " + str(y_target_.columns[0]) + "_" + str(type_f) + "_" + str(
                     self.estimator.__class__.__name__)
                 # verify that this name isn't taken.
                 # If taken, add a number next to the name.
-                _name = name_file(_name, str(_y.columns[0]) + "/", ".xlsx")
+                _name = name_file(_name, str(y_target_.columns[0]) + "/", ".xlsx")
 
                 if self.clustering:
-                    _name_2 = "best_c_" + str(_y.columns[0]) + "_c" + str(self.estimator.get_params()["n_clusters"])
-                    _name_2 = name_file(_name_2, str(_y.columns[0]) + "/", ".xlsx")
+                    _name_2 = "best_c_" + str(y_target_.columns[0]) + "_c" + str(self.estimator.get_params()["n_clusters"])
+                    _name_2 = name_file(_name_2, str(y_target_.columns[0]) + "/", ".xlsx")
 
                 print("perm features file is stored as %s" % _name)
 
             # loading data and saving features/benchmarks labels
-            self.features = np.array(x.columns)
-            self.target = _y.columns
-            self.benchmarks = x.index
+            self.features = np.array(x_input.columns)
+            self.target = y_target_.columns
+            self.benchmarks = x_input.index
 
             # print to the user what will be running.
             if self.printt:
@@ -146,28 +146,28 @@ class ExhaustiveSearch:
                     subset = np.array(subset)
 
                     # isolate only the features pointed by the variable subset
-                    new_x = x[subset]
+                    new_x = x_input[subset]
 
                     # check whether to do exhaustive search on whole dataset or with KFold
                     if not self.whole_dataset:
                         if self.parallel:
                             # start an asynchronous parallel process
                             process = pool.apply_async(permutation_fit, args=(
-                                new_x, y, self.estimator, subset, self.n_splits, self.clustering,
+                                new_x, y_target, self.estimator, subset, self.n_splits, self.clustering,
 
-                                self.scaling, x2, self.nruns_error, self.nruns_pcc))
+                                self.scaling, x_clustering, self.nruns_error, self.nruns_pcc))
                         else:
                             # call the function directly if without parallel processing
-                            process = permutation_fit(new_x, y, self.estimator, subset, self.n_splits,
+                            process = permutation_fit(new_x, y_target, self.estimator, subset, self.n_splits,
                                                       self.clustering,
 
-                                                      self.scaling, x2, self.nruns_error, self.nruns_pcc)
+                                                      self.scaling, x_clustering, self.nruns_error, self.nruns_pcc)
 
                     else:  # if on the whole dataset use the function training_fit() instead
                         if self.parallel:
-                            process = pool.apply_async(training_fit, args=(new_x, y, self.estimator, subset))
+                            process = pool.apply_async(training_fit, args=(new_x, y_target, self.estimator, subset))
                         else:
-                            process = training_fit(new_x, y, self.estimator, subset)
+                            process = training_fit(new_x, y_target, self.estimator, subset)
                     processes.append(process)
 
                     # wait and extract the results
