@@ -56,11 +56,11 @@ class ExhaustiveSearch:
             # create a copy of the target feature
             y_target = y_target_.copy()
 
-            # x_clustering is the clustering features if we are performing clustering permutation. Otherwise x_clustering is None
+            # x_prediction is the clustering features if we are performing clustering permutation. Otherwise x_prediction is None
             if x_prediction_ is not None:
-                x_clustering = x_prediction_.copy()
+                x_prediction = x_prediction_.copy()
             else:
-                x_clustering = None
+                x_prediction = None
 
             # print details about the selected PCC features
             if self.printt:
@@ -156,13 +156,13 @@ class ExhaustiveSearch:
                             process = pool.apply_async(permutation_fit, args=(
                                 new_x, y_target, self.estimator, subset, self.n_splits, self.clustering,
 
-                                self.scaling, x_clustering, self.nruns_error, self.nruns_pcc))
+                                self.scaling, x_prediction, self.nruns_error, self.nruns_pcc))
                         else:
                             # call the function directly if without parallel processing
                             process = permutation_fit(new_x, y_target, self.estimator, subset, self.n_splits,
                                                       self.clustering,
 
-                                                      self.scaling, x_clustering, self.nruns_error, self.nruns_pcc)
+                                                      self.scaling, x_prediction, self.nruns_error, self.nruns_pcc)
 
                     else:  # if on the whole dataset use the function training_fit() instead
                         if self.parallel:
