@@ -1,9 +1,12 @@
-# Branch Description
 
-This branch exists to rework the current code into a more organized object-oriented structure, while retaining the exact same functionality as the original program. 
-
-# FPGAPredict Research
+# FPGAPredict 
 Given a set of benchmarks with their CPU and FPGA features, FPGAPredict can perform clustering, feature selection, and KFold cross validation to predict a specific target metric on the FPGA (i.e. execution time or total power). It also can perform multiple random runs verification with KFold and prints the average error of these runs to verify that the results are accurate even with random KFolds.
+
+Please cite the following references:
+
+[1] Lina Sawalha, Tawfiq Abuaita, Martin Cowley, Sergei Akhmatdinov, Adam Dubs “Accurate Performance and Power Prediction for FPGAs Using Machine Learning,” IEEE 30th Annual International Symposium on Field-Programmable Custom Computing Machines (FCCM), pp. 1-2, May 2022.
+[2] Tawfiq Abuaita, Lina Sawalha, "FPGA-Predict: Performance and Power Prediction of High-Level-Synthesis (HLS) for FPGAs Using Machine Learning and Application Characteristics," Technical Report, CASRL, Western Michigan University, Aug. 2022. 
+
 
 ## Dependency
 
