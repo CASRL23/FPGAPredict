@@ -5,6 +5,7 @@ Given a set of benchmarks with their CPU and FPGA features, FPGAPredict can perf
 Please cite the following references:
 
 [1] Lina Sawalha, Tawfiq Abuaita, Martin Cowley, Sergei Akhmatdinov, Adam Dubs “Accurate Performance and Power Prediction for FPGAs Using Machine Learning,” IEEE 30th Annual International Symposium on Field-Programmable Custom Computing Machines (FCCM), pp. 1-2, May 2022.v [paper](https://ieeexplore.ieee.org/document/9786072)
+
 [2] Tawfiq Abuaita, Lina Sawalha, "FPGA-Predict: Performance and Power Prediction of High-Level-Synthesis (HLS) for FPGAs Using Machine Learning and Application Characteristics," Technical Report, CASRL, Western Michigan University, Aug. 2022. [paper](https://drive.google.com/file/d/1fTZTR2WgCyMYgiUCNsvST0xpoNOUAOhB/view?usp=sharing)
 
 
